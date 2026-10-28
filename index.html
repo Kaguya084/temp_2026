@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>智造跃迁 - AI重塑中国制造</title>
+<style>
+    /* 
+     * ================= 【全局响应式断点规划（统一阈值）】 =================
+     * 1. 默认状态 ( > 1300px )：桌面大屏，三列画廊、导航居中。
+     * 2. @media (max-width: 1300px)：中型屏幕，画廊自动隐藏第三列变两列，Page 2 内部元素缩小。
+     * 3. @media (max-width: 1024px)：平板竖向，开启顶部跑马灯，Page 2 转为垂直堆叠。
+     * 4. @media (max-width: 880px) ：手机/极限窄屏，全面变单列、缩小字号、防爆宽度。
+     * ====================================================================
+     */
+
+    /* ================= 1. 主题变量配置 ================= */
+    /* 默认：A 风格（工业风 - 传统制造阵痛期） */
+    :root { 
+        --bg: #111418;          /* 铁灰底色 */
+        --cyan: #c5a059;        /* 黄铜/工业黄 */
+        --dark-cyan: #5c4d2e;   /* 暗黄铜 */
+        --red: #b83b33;         /* 锈红警示 */
+        --text: #a3a8ad;        /* 工业水泥灰 */
+    }
+    
+    /* B 风格（科技风 - AI智造跃迁期）：由 JS 动态加上 theme-B 触发覆盖 */
+    body.theme-B {
+        --bg: #030814;          /* 深海蓝底色 */
+        --cyan: #00e5ff;        /* 赛博青 */
+        --dark-cyan: #006b80;   
+        --red: #ff3366;         
+        --text: #e0f7fa;        
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ================= 2. 原生 View Transitions 水波纹转场动画 ================= */
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation: none;
+        mix-blend-mode: normal;
+    }
+    
+    ::view-transition-old(root) {
+        z-index: 1;
+    }
+    
+    ::view-transition-new(root) {
+        z-index: 2;
+        animation: circle-in 2s linear forwards; /* 2s 匀速扩散 */
+    }
+    
+    @keyframes circle-in {
+        0% { clip-path: circle(0% at var(--click-x, 50%) var(--click-y, 50%)); }
+        100% { clip-path: circle(150% at var(--click-x, 50%) var(--click-y, 50%)); }
+    }
+    
+    /* ================= 3. 基础布局设置 ================= */
+    body { 
+        background: var(--bg); color: var(--text); 
+        font-family: 'Consolas', 'Courier New', 'Microsoft YaHei', 'PingFang SC', monospace; 
+        overflow-x: hidden; overflow-y: auto; 
+        min-height: 100vh; position: relative;
+        display: flex; flex-direction: column;
+    }
+
+    /* --- 物理边框与背景网格 --- */
+    .frame { 
+        position: fixed; inset: 10px; 
+        border: 1px solid var(--dark-cyan); 
+        pointer-events: none; z-index: 999; 
+    }
+    .corner { position: absolute; width: 30px; height: 30px; border: 2px solid var(--cyan); }
+    .corner-tl { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+    .corner-tr { top: -1px; right: -1px; border-left: none; border-bottom: none; }
+    .corner-bl { bottom: -1px; left: -1px; border-right: none; border-top: none; }
+    .corner-br { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+
+    .grid-bg { 
+        position: fixed; inset: 0; z-index: -2;
+        background-image: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px); 
+        background-size: 30px 30px; 
+    }
+    body.theme-B .grid-bg {
+        background-image: linear-gradient(rgba(0,229,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.05) 1px, transparent 1px); 
+    }
+
+    /* --- 扫描线与边缘遮罩 --- */
+    .scanline {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100px; z-index: -1;
+        background: linear-gradient(to bottom, transparent, rgba(0,229,255,0.05), transparent);
+        animation: scan 6s linear infinite;
+        display: none; 
+    }
+    body.theme-B .scanline { display: block; }
+    @keyframes scan { 0% { top: -100px; } 100% { top: 100vh; } }
+
+    .fade-top, .fade-bottom {
+        position: fixed; left: 0; width: 100%; height: 80px;
+        pointer-events: none; z-index: 100; 
+    }
+    .fade-top { top: 0; background: linear-gradient(to bottom, var(--bg) 10%, transparent 100%); }
+    .fade-bottom { bottom: 0; background: linear-gradient(to top, var(--bg) 10%, transparent 100%); }
+
+    /* ================= 4. 顶部导航栏 (无缝跑马灯) ================= */
+    .nav-wrapper {
+        width: calc(100% - 40px);
+        margin: 0 auto;
+        overflow: hidden; 
+        padding: 30px 0 15px;
+        display: flex;
+        justify-content: center; 
+        -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+        mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+    }
+
+    .nav-track {
+        display: flex;
+        width: max-content;
+    }
+
+    .nav-group {
+        display: flex;
+        gap: 15px;
+        padding-right: 15px; 
+    }
+
+    .nav-group:nth-child(2) { display: none; }
+
+    .nav-btn {
+        background: rgba(0,0,0,0.2) !important;
+        border: 1px solid var(--dark-cyan);
+        color: var(--text); 
+        padding: 10px 25px; font-family: inherit; font-size: 1rem;
+        cursor: pointer; transition: 0.3s; letter-spacing: 1px; white-space: nowrap;
+        flex-shrink: 0; 
+        box-shadow: none !important; 
+    }
+    .nav-btn:hover, .nav-btn.active {
+        background: rgba(255,255,255,0.05) !important; 
+        color: var(--cyan); border-color: var(--cyan);
+    }
+
+    body.theme-B .nav-btn { background: rgba(0,20,40,0.8) !important; }
+    body.theme-B .nav-btn:hover, body.theme-B .nav-btn.active {
+        background: rgba(0,229,255,0.1) !important; 
+        box-shadow: 0 0 15px rgba(0,229,255,0.3) !important; 
+        text-shadow: 0 0 5px var(--cyan);
+    }
+
+    @keyframes scrollNav {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+    }
+
+    /* ================= 5. 页面容器与通用元素 ================= */
+    .page { 
+        display: none; flex: 1; width: 100%; padding: 20px 60px 60px; 
+        flex-direction: column; animation: fadeIn 0.5s ease; 
+    }
+    .page.active { display: flex; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* --- Page 1: 宏观背景 --- */
+    .macro-title { 
+        text-align: center; font-size: clamp(2rem, 4vw, 4rem);
+        color: var(--cyan); letter-spacing: 10px; margin-bottom: 15px; 
+        text-shadow: none;
+    }
+    .macro-subtitle { text-align: center; font-size: 1.5rem; color: var(--text); letter-spacing: 6px; margin-bottom: 60px; opacity: 0.7;}
+    
+    .macro-flex { /* 【已重命名】废弃 Grid 命名，实际为 Flex 居中 */
+        display: flex; 
+        flex-wrap: wrap; 
+        gap: 30px; 
+        justify-content: center; 
+        align-items: stretch;
+    }
+    .macro-card { 
+        flex: 0 1 500px; /* 基础宽度500，允许收缩，不强制拉伸填满 */
+        width: 100%; 
+        min-height: 300px; border: 1px solid var(--dark-cyan); 
+        background: rgba(0,0,0,0.2); padding: 40px; 
+        display: flex; flex-direction: column; justify-content: center; 
+        box-sizing: border-box;
+    }
+    .macro-card h3 { color: var(--cyan); font-size: 2rem; margin-bottom: 20px; border-bottom: 1px dashed var(--dark-cyan); padding-bottom: 15px; text-shadow: none;}
+    .macro-card p { font-size: 1.2rem; line-height: 1.8; }
+
+    /* --- Page 2: 核心交互 --- */
+    .interactive-container { 
+        display: flex; 
+        gap: 40px; flex: 1; align-items: center; justify-content: center; 
+    }
+    .panel { 
+        flex: 1; min-width: 300px; height: 600px; border: 1px solid var(--dark-cyan); 
+        background: rgba(0,0,0,0.2); padding: 40px; position: relative; 
+        display: flex; flex-direction: column; justify-content: center; 
+    }
+    h2 { color: var(--cyan); font-size: 2rem; margin-bottom: 30px; border-bottom: 1px solid var(--dark-cyan); padding-bottom: 15px; letter-spacing: 2px; text-shadow: none;}
+    
+    /* --- Page 2 痛点与数据点排版 --- */
+    .pain-point { 
+        font-size: 1.4rem; margin: 25px 0; padding-left: 20px; border-left: 4px solid var(--red); 
+        display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    }
+    .pain-point span { 
+        color: var(--red); font-weight: bold; white-space: nowrap;
+    }
+
+    .data-point { 
+        font-size: 1.4rem; margin: 25px 0; padding-left: 20px; border-left: 4px solid var(--cyan); 
+        display: flex; justify-content: space-between; align-items: center; gap: 10px;
+        opacity: 0; transform: translateX(30px); transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+    }
+    .data-point span { 
+        color: var(--cyan); font-size: 1.8rem; font-weight: bold; text-shadow: none; 
+        white-space: nowrap;
+    }
+
+    .center { display: flex; flex-direction: column; align-items: center; width: 350px; }
+    .btn { 
+        background: transparent; border: 2px solid var(--cyan); color: var(--cyan); 
+        padding: 25px 50px; font-size: 2rem; font-family: inherit; cursor: pointer; 
+        position: relative; transition: all 0.3s; letter-spacing: 4px; 
+        box-shadow: none;
+    }
+    .btn:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+    .source-tag { font-size: 1rem; color: var(--text); opacity: 0.5; margin-top: auto; border-top: 1px dashed var(--dark-cyan); padding-top: 15px; }
+
+    /* --- Page 3: 横向滚动图片墙 --- */
+    .gallery-container {
+        flex: 1; 
+        display: flex; 
+        flex-direction: column; /* 纵向排列行 */
+        gap: 20px; 
+        overflow: hidden; 
+        position: relative; 
+        margin-top: 30px;
+        justify-content: center;
+        /* 上下边缘渐隐，让滚动平滑消失 */
+        -webkit-mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+        mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+    }
+
+    /* 每一行的轨道 */
+    .gallery-row { 
+        display: flex; 
+        gap: 20px; 
+        width: max-content;
+        animation: scrollLeft 35s linear infinite;
+    }
+    /* 偶数行反向滚动，增加交错感 */
+    .gallery-row.reverse { animation: scrollRight 40s linear infinite; }
+
+    /* 悬停暂停 */
+    @media (hover: hover) {
+        .gallery-container:hover .gallery-row { animation-play-state: paused; }
+    }
+
+    /* 卡片样式（更像真实的图片框） */
+    .gallery-item {
+        width: 350px; /* 固定宽度 */
+        height: 200px; /* 固定高度，横向比例 */
+        border: 1px solid var(--dark-cyan);
+        position: relative; 
+        transition: all 0.3s; 
+        flex-shrink: 0; 
+        overflow: hidden;
+        background: rgba(0,0,0,0.3);
+    }
+    .gallery-item:hover { 
+        border-color: var(--cyan); 
+        box-shadow: 0 0 20px rgba(255,255,255,0.1); 
+    }
+    body.theme-B .gallery-item:hover { 
+        box-shadow: inset 0 0 40px rgba(0,229,255,0.4), 0 0 30px rgba(0,229,255,0.3); 
+    }
+    
+    /* 纯 CSS 网格底纹 */
+    .gallery-item::after {
+        content: ''; position: absolute; inset: 0; z-index: 0;
+        background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+        background-size: 20px 20px; pointer-events: none;
+    }
+    body.theme-B .gallery-item::after {
+        background-image: linear-gradient(rgba(0,229,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.05) 1px, transparent 1px);
+    }
+
+    /* 底部文字遮罩 */
+    .gallery-item::before {
+        content: ''; position: absolute; inset: 0; z-index: 1;
+        background: linear-gradient(to top, var(--bg) 0%, transparent 60%);
+        pointer-events: none;
+    }
+    .item-info { 
+        position: absolute; bottom: 15px; left: 20px; right: 20px; 
+        z-index: 2; display: flex; flex-direction: column;
+    }
+    .img-placeholder { color: #fff; font-size: 1.2rem; font-weight: bold; letter-spacing: 1px; white-space: nowrap;}
+    .img-sub { font-size: 0.8rem; color: var(--cyan); margin-top: 5px; border: 1px solid var(--cyan); padding: 2px 6px; border-radius: 2px; background: rgba(0,0,0,0.5); width: fit-content;}
+
+    .play-icon {
+        position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+        width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--cyan);
+        display: flex; align-items: center; justify-content: center; 
+        z-index: 2; background: rgba(0,0,0,0.6); transition: 0.3s; opacity: 0.8;
+    }
+    .gallery-item:hover .play-icon { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    .play-icon::after {
+        content: ''; display: block; width: 0; height: 0; 
+        border-top: 8px solid transparent; border-bottom: 8px solid transparent; 
+        border-left: 12px solid var(--cyan); margin-left: 4px;
+    }
+
+    /* 横向滚动动画 */
+    @keyframes scrollLeft { 
+        0% { transform: translateX(0); } 
+        100% { transform: translateX(calc(-50% - 10px)); } 
+    }
+    @keyframes scrollRight { 
+        0% { transform: translateX(calc(-50% - 10px)); } 
+        100% { transform: translateX(0); } 
+    }
+
+    /* --- Page 4: 青年答卷 --- */
+    #page4 {
+        justify-content: center; /* 确保整个页面内容垂直居中 */
+        min-height: calc(100vh - 100px); 
+        padding-bottom: 0; /* 抵消通用 padding，防止底部留白过大 */
+    }
+    .youth-container { 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center; 
+        justify-content: center; 
+        width: 100%; 
+        text-align: center; 
+        /* 删除了 flex: none，让内容能根据屏幕自动居中 */
+    }
+    .youth-quote { 
+        /* 【调大】基准字调大到 2.5rem，大屏最大 4rem */
+        font-size: clamp(2.5rem, 5vw, 4rem); 
+        color: var(--cyan); 
+        line-height: 1.5; 
+        max-width: 1200px; 
+        margin-bottom: 40px; 
+        font-family: 'Microsoft YaHei', sans-serif; 
+        font-weight: bold; 
+        text-shadow: none;
+    }
+    body.theme-B .youth-quote { text-shadow: 0 0 20px rgba(0,229,255,0.5); }
+    
+    .youth-author { 
+        font-size: 1.5rem; /* 【调大】作者字号 1.5rem */
+        color: var(--text); 
+        margin-bottom: 60px; 
+    }
+    
+    .team-box { 
+        border-top: 1px solid var(--dark-cyan); 
+        padding-top: 30px; 
+        width: 100%; 
+        color: var(--text); 
+        opacity: 0.85; /* 【调亮】从 0.7 提高到 0.85，文字更清晰 */
+        font-size: 1.2rem; /* 【调大】底部信息字号 1.2rem */
+        line-height: 2; 
+    }
+    
+    /* --- 思政弹窗 --- */
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: 0.5s; z-index: 1000; backdrop-filter: blur(5px); }
+    .modal.active { opacity: 1; pointer-events: auto; }
+    .modal-content { border: 2px solid var(--cyan); background: var(--bg); padding: 80px 100px; text-align: center; transform: scale(0.8); transition: 0.5s; position: relative; width: 800px; max-width: 90vw; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
+    body.theme-B .modal-content { box-shadow: 0 0 100px rgba(0,229,255,0.3), inset 0 0 40px rgba(0,229,255,0.2); }
+    .modal.active .modal-content { transform: scale(1); }
+    .modal-content h1 { color: var(--cyan); font-size: 3rem; margin-bottom: 30px; letter-spacing: 6px; }
+    .modal-content p { font-size: 2rem; line-height: 1.8; color: #fff; margin: 0; font-weight: bold; }
+    .modal-content .author { font-size: 1.2rem; margin-top: 30px; color: var(--cyan); }
+    .close-btn { position: absolute; bottom: -70px; left: 50%; transform: translateX(-50%); background: transparent; border: 1px solid var(--cyan); color: var(--cyan); padding: 15px 40px; cursor: pointer; font-family: inherit; font-size: 1.2rem; transition: 0.3s; }
+    .close-btn:hover { background: var(--cyan); color: var(--bg); }
+
+    /* ================= 6. 科技风专属特效 ================= */
+    body.theme-B .macro-title { text-shadow: 0 0 20px var(--cyan); }
+    body.theme-B .macro-card h3, body.theme-B h2 { text-shadow: 0 0 10px rgba(0,229,255,0.5); }
+    body.theme-B .pain-point span { animation: pulse-red 2s infinite; }
+    body.theme-B .data-point span { text-shadow: 0 0 10px var(--cyan); }
+    body.theme-B .btn { 
+        box-shadow: 0 0 20px rgba(0,229,255,0.2), inset 0 0 15px rgba(0,229,255,0.1); 
+        animation: breathe 2s infinite alternate; 
+    }
+    @keyframes pulse-red { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; text-shadow: 0 0 10px var(--red); } }
+    @keyframes breathe { 0% { box-shadow: 0 0 10px rgba(0,229,255,0.2); } 100% { box-shadow: 0 0 40px rgba(0,229,255,0.6); } }
+
+    /* ================= 7. 响应式与悬停控制 ================= */
+    @media (hover: hover) {
+        .gallery-container:hover .gallery-col { animation-play-state: paused; }
+        .nav-track:hover { animation-play-state: paused; }
+    }
+
+    /* 断点 4：1024px 触发跑马灯并转为垂直堆叠 */
+    @media (max-width: 1024px) {
+        .nav-wrapper { justify-content: flex-start; }
+        .nav-track { animation: scrollNav 35s linear infinite; }
+        .nav-group:nth-child(2) { display: flex; }
+        
+        /* 【核心修复】在中等窗口下，直接干掉三列布局，改为垂直堆叠 */
+        .interactive-container { 
+            flex-direction: column; 
+            flex-wrap: nowrap; 
+            height: auto; 
+            gap: 30px;
+        }
+        .panel { 
+            width: 100%; 
+            height: auto; 
+            min-height: 400px; 
+        }
+        .center { 
+            width: 100%; 
+            margin: 10px 0; 
+        }
+        
+        .panel { padding: 40px; }
+        h2 { font-size: 2rem; margin-bottom: 30px; }
+        .pain-point { font-size: 1.4rem; margin: 25px 0; }
+        .data-point { font-size: 1.4rem; margin: 25px 0; }
+        .data-point span { font-size: 1.8rem; }
+        .source-tag { font-size: 1rem; margin-top: auto; }
+        .center { width: 100%; margin: 20px 0; }
+        .btn { padding: 25px 50px; font-size: 2rem; letter-spacing: 4px; }
+    }
+
+    /* 断点 2：1300px 画廊变两列 + Page 2 内部元素缩小 */
+    @media (max-width: 1300px) {
+        .gallery-col:nth-child(3) { display: none; }
+
+        .panel { padding: 25px; }
+        h2 { font-size: 1.5rem; margin-bottom: 20px; }
+        
+        .pain-point { font-size: 1.1rem; margin: 20px 0; }
+        .data-point { font-size: 1.1rem; margin: 20px 0; }
+        .data-point span { font-size: 1.4rem; }
+        .source-tag { font-size: 0.8rem; margin-top: 20px; }
+
+        .center { width: 200px; }
+        .btn { padding: 20px 30px; font-size: 1.5rem; letter-spacing: 2px; }
+        
+        .panel { height: auto; min-height: 500px; }
+    }
+
+    /* 断点 5：880px 手机端终极防爆适配 */
+    @media (max-width: 880px) {
+        body, html { overflow-x: hidden; width: 100%; max-width: 100vw; }
+        .page { flex: none; height: auto; padding: 20px 10px 100px !important; overflow-x: hidden; } 
+        
+        .macro-title { font-size: 1.6rem; letter-spacing: 2px; line-height: 1.4; white-space: normal; text-align: center; }
+        .macro-subtitle { font-size: 0.9rem; letter-spacing: 1px; margin-bottom: 20px; text-align: center; }
+        #page3 h2 { font-size: 1.6rem !important; margin-bottom: 15px !important; padding: 0 10px; line-height: 1.4; }
+
+        .macro-flex { gap: 15px; } /* 在 Flex 模式下，只需控制 gap，自动换行 */
+        .macro-card { min-height: auto; padding: 15px; width: 100%; box-sizing: border-box; }
+        .macro-card h3 { font-size: 1.3rem; margin-bottom: 10px; padding-bottom: 8px; }
+        .macro-card p { font-size: 0.95rem; line-height: 1.6; word-wrap: break-word; overflow-wrap: break-word; }
+
+        .interactive-container { flex-direction: column; height: auto; gap: 15px; }
+        .panel { width: 100%; height: auto; min-height: auto; padding: 15px; box-sizing: border-box; }
+        h2 { font-size: 1.3rem; margin-bottom: 15px; padding-bottom: 10px; }
+        
+        .pain-point { flex-wrap: wrap; gap: 5px; font-size: 0.95rem; margin: 12px 0; word-wrap: break-word; }
+        .pain-point span { font-size: 0.95rem; }
+        .data-point { flex-wrap: wrap; gap: 5px; font-size: 0.95rem; margin: 12px 0; word-wrap: break-word; }
+        .data-point span { font-size: 1.1rem; }
+        .source-tag { font-size: 0.75rem; }
+
+        .center { width: 100%; margin: 10px 0; }
+        .btn { padding: 12px 25px; font-size: 1.2rem; }
+        
+        .nav-wrapper { width: 100%; padding: 15px 0; }
+        .nav-btn { padding: 8px 12px; font-size: 0.8rem; white-space: nowrap; }
+
+        .gallery-container { height: 50vh; margin-top: 15px; padding: 0 !important; overflow-x: hidden; }
+        .gallery-col { width: 100%; max-width: 100%; padding: 0 15px; margin: 0 auto; gap: 15px; box-sizing: border-box; } 
+        .gallery-col.scroll-down { display: none; }
+        .gallery-item { height: 180px; }
+        .img-placeholder { font-size: 1rem; white-space: normal; word-break: break-all; }
+        .img-sub { font-size: 0.75rem; white-space: normal; }
+        .play-icon { width: 40px; height: 40px; }
+        .play-icon::after { border-top: 8px solid transparent; border-bottom: 8px solid transparent; border-left: 12px solid var(--cyan); margin-left: 4px; }
+
+        .youth-quote { font-size: 1.8rem; line-height: 1.5; padding: 0 10px; } /* 手机端也稍微放大 */
+        .youth-author { font-size: 1.1rem; }
+        .team-box { margin-top: 30px; padding-top: 15px; font-size: 0.9rem; line-height: 1.8; word-wrap: break-word; }
+        
+        .modal-content { padding: 25px 15px; width: 90vw; max-width: 95vw; box-sizing: border-box; }
+        .modal-content h1 { font-size: 1.3rem; letter-spacing: 1px; }
+        .modal-content p { font-size: 1rem; word-wrap: break-word; }
+        .close-btn { padding: 8px 15px; font-size: 0.9rem; bottom: -45px; }
+
+        /* --- Page 5 手机端字号防爆 --- */
+        .page5-title { font-size: 1.8rem !important; letter-spacing: 2px; margin-bottom: 20px !important; }
+        .plan-card { padding: 20px; } /* 减小内边距 */
+        .plan-step { font-size: 0.8rem; margin-bottom: 10px; padding-bottom: 8px; }
+        .plan-card h3 { font-size: 1.15rem; margin-bottom: 10px; } /* 缩小标题 */
+        .plan-card p { font-size: 0.85rem; line-height: 1.6; } /* 缩小正文，防止拥挤 */
+    }
+
+    /* ================= Page 5: 未来展望 (计划卡片) ================= */
+    .page5-title {
+        font-size: clamp(2rem, 4vw, 3rem); /* 在宽屏上稍微收敛一点，不要抢了主标题风头 */
+        white-space: normal; /* 允许换行 */
+    }
+
+    .plan-flex { 
+        display: flex; 
+        flex-wrap: wrap;
+        gap: 25px; 
+        justify-content: center; 
+        align-items: stretch;
+        flex: 1;
+    }
+    .plan-card { 
+        flex: 0 1 400px; /* 【优化】基础宽度从350提高到400，让文字更舒展 */
+        border: 1px solid var(--dark-cyan); 
+        background: rgba(0,0,0,0.2); 
+        padding: 30px; 
+        transition: all 0.3s ease; 
+        position: relative;
+        box-sizing: border-box;
+    }
+    /* ... 卡片内部其他样式保持不变 ... */
+    .plan-card:hover { 
+        border-color: var(--cyan); 
+        transform: translateY(-5px); 
+    }
+    body.theme-B .plan-card:hover {
+        box-shadow: 0 0 20px rgba(0,229,255,0.2);
+    }
+    .plan-step { 
+        font-size: 0.85rem; 
+        color: var(--cyan); 
+        font-weight: bold; 
+        letter-spacing: 2px; 
+        margin-bottom: 15px; 
+        border-bottom: 1px dashed var(--dark-cyan); 
+        padding-bottom: 10px; 
+        text-transform: uppercase;
+    }
+    .plan-card h3 { 
+        font-size: 1.3rem; 
+        color: var(--text); 
+        margin-bottom: 15px; 
+    }
+    body.theme-B .plan-card h3 { 
+        text-shadow: 0 0 10px rgba(0,229,255,0.5); 
+    }
+    .plan-card p { 
+        font-size: 0.95rem; 
+        line-height: 1.7; 
+        color: var(--text); 
+        opacity: 0.8;
+    }
+
+    /* ================= 8. 防呆机制组件 ================= */
+    .nav-wrapper.disabled-nav {
+        pointer-events: none;
+        opacity: 0.5;
+    }
+    .nav-wrapper.disabled-nav .nav-track {
+        animation-play-state: paused !important;
+    }
+
+    /* --- Page 2 次级重置按钮 --- */
+    .reset-btn {
+        margin-top: 25px;
+        background: transparent;
+        border: 1px dashed var(--dark-cyan);
+        color: var(--text);
+        padding: 8px 20px;
+        font-family: inherit;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.3s;
+        letter-spacing: 2px;
+        opacity: 0.6; 
+    }
+
+    .reset-btn:hover {
+        opacity: 1;
+        color: var(--cyan);
+        border-color: var(--cyan);
+        background: rgba(255, 255, 255, 0.05);
+    }
+    body.theme-B .reset-btn:hover {
+        background: rgba(0, 229, 255, 0.1);
+        box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
+    }
+
+    .reset-btn:disabled {
+        opacity: 0.2;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+</style>
+</head>
+<body>
+
+<div class="frame">
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+</div>
+<div class="grid-bg"></div>
+<div class="scanline"></div>
+<div class="fade-top"></div>
+<div class="fade-bottom"></div>
+
+<div class="nav-wrapper">
+    <div class="nav-track"></div>
+</div>
+
+<!-- Page 1: 宏观背景 -->
+<div class="page active" id="page1">
+    <div class="macro-title">制造大国 · 智造强国</div>
+    <div class="macro-subtitle">从阵痛走向跃迁的交汇点</div>
+    <div class="macro-flex">
+        <div class="macro-card">
+            <h3>历史成就</h3>
+            <p>我国拥有全球最完整的工业体系，制造业规模连续多年位居世界第一。Made in China 遍布全球。</p>
+        </div>
+        <div class="macro-card">
+            <h3>现实挑战</h3>
+            <p>大而不强、全而不优。人口红利消退，核心技术受制于人，全球价值链中低端锁定亟待打破。</p>
+        </div>
+        <div class="macro-card">
+            <h3>时代破局</h3>
+            <p>以人工智能为代表的新一代信息技术，正在与实体经济深度融合，催生新质生产力。</p>
+        </div>
+    </div>
+</div>
+
+<!-- Page 2: 核心交互 -->
+<div class="page" id="page2">
+    <div class="interactive-container">
+        <div class="panel">
+            <h2>传统制造 · 阵痛期</h2>
+            <div class="pain-point">单位GDP能耗水平 <span>居高不下</span></div>
+            <div class="pain-point">高端工业软件与芯片 <span>卡脖子困境</span></div>
+            <div class="pain-point">低端重复劳动密集 <span>效率瓶颈</span></div>
+            <div class="pain-point">处于全球价值链 <span>中低端锁定</span></div>
+        </div>
+        
+        <div class="center">
+            <button class="btn" id="ai-btn">AI 赋能</button>
+            <!-- 【新增】挪入中心的次级重置按钮 -->
+            <button class="reset-btn" id="reset-btn" onclick="resetDemo()">[ Reset ]</button>
+        </div>
+        
+        <div class="panel" id="right-panel">
+            <h2>智造强国 · 跃迁期</h2>
+            <div class="data-point" id="data1">已建成智能工厂 <span data-target="近万家">0</span></div>
+            <div class="data-point" id="data2">智能制造装备规模 <span data-target="3.2万亿元">0</span></div>
+            <div class="data-point" id="data3">AI赋能研发周期缩短 <span data-target="20%">0</span></div>
+            <div class="data-point" id="data4">制造业机器人密度 <span data-target="392台/万人">0</span></div>
+            <div class="source-tag">* 数据来源：工信部、国家统计局、中国信通院</div>
+        </div>
+    </div>
+</div>
+
+<!-- Page 3: 案例实景 -->
+<div class="page" id="page3">
+    <h2 style="text-align: center; font-size: 2.5rem; border: none; margin-bottom: 0;">大国重器 · 智造先锋</h2>
+    <div class="gallery-container" id="gallery-container"></div>
+</div>
+
+<!-- Page 4: 青年答卷 -->
+<div class="page" id="page4">
+    <div class="youth-container">
+        <div class="youth-quote">“以科技创新引领产业创新，<br>积极培育和发展新质生产力。”</div>
+        <div class="youth-author">—— 习近平</div>
+        
+        <!-- 【占位文本说明】当前为测试阶段占位，最终答辩时请替换为真实的团队信息或答辩总结词 -->
+        <div class="team-box">
+            <p>课程名称：习近平新时代中国特色社会主义思想概论</p>
+            <p>项目研发团队：大连理工大学 26级 第2组</p>
+            <p>此页面为作品展示使用的临时页面,可以考虑使用其他内容替换</p>
+        </div>
+    </div>
+</div>
+
+<!-- Page 5: 未来展望 (思政升华版) -->
+<div class="page" id="page5">
+    <div class="macro-title page5-title" style="margin-bottom: 40px;">扬帆起航 · 智造新篇</div>
+    
+    <div class="plan-flex">
+        <!-- 对应评分标准 ①：主题把握与理论深度 -->
+        <div class="plan-card">
+            <div class="plan-step">Phase 01 / 理论赋能</div>
+            <h3>深研新质生产力</h3>
+            <p>跳出技术框架，我们将回归理论原著。深入剖析马克思主义政治经济学与“新质生产力”的内在联系，为后续的数字化宣讲提供更严密、更深刻的学理支撑。</p>
+        </div>
+        
+        <div class="plan-card">
+            <div class="plan-step">Phase 02 / 开源共建</div>
+            <h3>思政数字化底座</h3>
+            <p>将该轻量级、零依赖的交互式大屏代码彻底开源，打造一个可供全校乃至全国高校思政课直接复用的“数字化展演底座”。</p>
+        </div>
+        
+        <!-- 对应评分标准 ③：数字化质量与创新性 -->
+        <div class="plan-card">
+            <div class="plan-step">Phase 03 / 迭代升级</div>
+            <h3>跨学科数字融合</h3>
+            <p>持续探索“计算机技术+思政理论”的跨界融合。在保留零依赖、轻量化优势的基础上，引入更丰富的真实工业数据，打造可复用的高校思政数字化展演底座。</p>
+        </div>
+        
+        <!-- 呼应总体目标：科技报国 -->
+        <div class="plan-card">
+            <div class="plan-step">Phase 04 / 科技报国</div>
+            <h3>投身智造强国</h3>
+            <p>从一份网页作业出发，走向未来的科研实践。将个人所学与国家重大战略需求相结合，把代码写在祖国的大地上，做无愧于时代的计算机青年。</p>
+        </div>
+    </div>
+</div>
+
+<!-- 思政弹窗 -->
+<div class="modal" id="golden-modal">
+    <div class="modal-content">
+        <h1>科技创新 · 新质生产力</h1>
+        <p>“以科技创新引领产业创新，<br>积极培育和发展新质生产力。”</p>
+        <p class="author">—— 习近平</p>
+        <button class="close-btn" onclick="closeModal()">继续演示</button>
+    </div>
+</div>
+
+<script>
+    // ================= 1. 数据配置区 =================
+    // 【拓展红线】在这里添加新菜单，id 必须递增，name 必须是4个中文字符
+    const navItems = [
+        { id: 1, name: '宏观背景' },
+        { id: 2, name: 'AI 赋能' },
+        { id: 3, name: '智造先锋' },
+        { id: 4, name: '青年答卷' },
+        { id: 5, name: '未来展望' }
+    ];
+
+    const caseData = [
+        { title: '黑灯工厂', sub: '全自动化产线' },
+        { title: '机器视觉质检', sub: 'AI缺陷检测' },
+        { title: '工业大模型', sub: '边缘计算节点' },
+        { title: '5G全连接工厂', sub: '智能机械臂' },
+        { title: '数字孪生车间', sub: '实时数据映射' },
+        { title: '智能物流仓储', sub: 'AGV调度系统' }
+    ];
+
+    // ================= 2. 渲染函数区 =================
+    // 渲染顶部导航：生成两组一模一样的按钮，用于跑马灯无缝衔接
+    function renderNav() {
+        const track = document.querySelector('.nav-track');
+        if (!track) return;
+        
+        const createGroupHtml = () => {
+            return navItems.map((item, index) => `
+                <button class="nav-btn ${index === 0 ? 'active' : ''}" onclick="switchPage(${item.id})">
+                    ${item.name}
+                </button>
+            `).join('');
+        };
+
+        track.innerHTML = `
+            <div class="nav-group">${createGroupHtml()}</div>
+            <div class="nav-group">${createGroupHtml()}</div>
+        `;
+    }
+
+    // [画廊渲染] 横向图片墙
+    function renderGallery() {
+        const container = document.getElementById('gallery-container');
+        if (!container) return;
+
+        // 为了让每一行都饱满，我们把数组分成三段
+        const row1Data = [...caseData.slice(0, 2), ...caseData.slice(0, 2)]; // 取前2个并复制
+        const row2Data = [...caseData.slice(2, 4), ...caseData.slice(2, 4)]; // 取中间2个并复制
+        const row3Data = [...caseData.slice(4, 6), ...caseData.slice(4, 6)]; // 取最后2个并复制
+
+        // 为了让无缝滚动成立，每行的数据必须复制两份以上拼接
+        // 比如 row1 有 4 个，拼成 8 个
+        const createRowHtml = (data) => {
+            const duplicated = [...data, ...data]; 
+            return duplicated.map(item => `
+                <div class="gallery-item">
+                    <div class="play-icon"></div>
+                    <div class="item-info">
+                        <div class="img-placeholder">[ 实时画面 ] ${item.title}</div>
+                        <div class="img-sub">${item.sub}</div>
+                    </div>
+                </div>
+            `).join('');
+        };
+
+        // 渲染三行，中间一行反向滚
+        container.innerHTML = `
+            <div class="gallery-row">${createRowHtml(row1Data)}</div>
+            <div class="gallery-row reverse">${createRowHtml(row2Data)}</div>
+            <div class="gallery-row">${createRowHtml(row3Data)}</div>
+        `;
+    }
+
+    // ================= 3. 核心交互区 =================
+    // 页面切换逻辑：不包含强制重置动画，防止用户切页时打断正在进行的赋能动画
+    function switchPage(pageNum) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-group .nav-btn').forEach(b => b.classList.remove('active'));
+        
+        const targetPage = document.getElementById('page' + pageNum);
+        if(targetPage) targetPage.classList.add('active');
+        
+        // 精准高亮对应的按钮（防止跑马灯循环时高亮状态错乱）
+        const activeBtns = document.querySelectorAll(`.nav-btn[onclick="switchPage(${pageNum})"]`);
+        activeBtns.forEach(btn => btn.classList.add('active'));
+        
+        // 手机端切页自动回到顶部
+        if(window.innerWidth <= 880) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+
+    // 关闭弹窗
+    function closeModal() {
+        document.getElementById('golden-modal').classList.remove('active');
+    }
+
+    // [全局动画锁] 防止连点：用于控制 Page 2 赋能动画、导航栏禁用、Reset 按钮禁用
+    let isAnimated = false;
+    function animateValue(obj, targetText, duration) {
+        let startTimestamp = null;
+        const match = targetText.match(/[\d.]+/);
+        if (!match) { obj.innerText = targetText; return; }
+        const targetNum = parseFloat(match[0]);
+        const prefix = targetText.substring(0, match.index);
+        const suffix = targetText.substring(match.index + match[0].length);
+        const isFloat = targetText.includes('.');
+
+        const step = (timestamp) => {
+            if (!startTimestamp) startTimestamp = timestamp;
+            const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+            const easeOut = 1 - Math.pow(1 - progress, 4); // 缓动函数：先快后慢
+            let currentNum = (targetNum * easeOut).toFixed(isFloat ? 1 : 0);
+            obj.innerText = prefix + currentNum + suffix;
+            if (progress < 1) { window.requestAnimationFrame(step); } 
+            else { obj.innerText = targetText; }
+        };
+        window.requestAnimationFrame(step);
+    }
+
+    // [重置演示] 将一切状态恢复出厂设置
+    function resetDemo() {
+        // 1. 拦截赋能动画期间的误触
+        if (isAnimated && document.getElementById('ai-btn').innerText === '跃迁中...') {
+            return;
+        }
+
+        // 2. 【核心修复】拦截初始状态下的重复重置
+        const isInitialState = !document.body.classList.contains('theme-B');
+        const isModalOpen = document.getElementById('golden-modal').classList.contains('active');
+        
+        // 如果已经是初始状态且没弹窗，直接返回，避免触发毫无意义的 View Transition 导致卡死
+        if (isInitialState && !isModalOpen) {
+            return;
+        }
+        
+        closeModal();
+        
+        const resetBtn = document.getElementById('reset-btn');
+        const rect = resetBtn.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        document.documentElement.style.setProperty('--click-x', `${x}px`);
+        document.documentElement.style.setProperty('--click-y', `${y}px`);
+
+        const removeTheme = () => {
+            isAnimated = false;
+            document.body.classList.remove('theme-B'); // 褪回工业风
+
+            const btn = document.getElementById('ai-btn');
+            if(btn) {
+                btn.innerText = 'AI 赋能';
+                btn.style.color = 'var(--cyan)';
+                btn.style.borderColor = 'var(--cyan)';
+                btn.style.animation = 'breathe 2s infinite alternate';
+            }
+
+            document.querySelectorAll('.data-point').forEach(el => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateX(30px)';
+                el.querySelector('span').innerText = '0';
+            });
+        };
+
+        // 如果弹窗没开，瞬间重置；如果弹窗开着，延迟 500ms 等弹窗消失后再放水波纹
+        if (!isModalOpen) {
+            if (document.startViewTransition) document.startViewTransition(removeTheme);
+            else removeTheme();
+        } else {
+            setTimeout(() => {
+                if (document.startViewTransition) document.startViewTransition(removeTheme);
+                else removeTheme();
+            }, 500);
+        }
+    }
+
+    // ================= 4. 初始化与事件绑定 =================
+    document.addEventListener('DOMContentLoaded', () => {
+        renderNav();
+        renderGallery();
+
+        const aiBtn = document.getElementById('ai-btn');
+        const resetBtn = document.getElementById('reset-btn'); 
+        
+        if(aiBtn) {
+            aiBtn.addEventListener('click', () => {
+                if (isAnimated) return; 
+                isAnimated = true;
+
+                // 1. 计算水波圆心坐标（从按钮中心扩散）
+                const rect = aiBtn.getBoundingClientRect();
+                const x = rect.left + rect.width / 2;
+                const y = rect.top + rect.height / 2;
+                document.documentElement.style.setProperty('--click-x', `${x}px`);
+                document.documentElement.style.setProperty('--click-y', `${y}px`);
+
+                // 2. 定义同步状态变更（在动画开始前瞬间改变DOM状态）
+                const applyTheme = () => {
+                    if(resetBtn) {
+                        resetBtn.disabled = true; 
+                        resetBtn.innerText = '[ BUSY... ]'; 
+                    }
+                    
+                    const navWrapper = document.querySelector('.nav-wrapper');
+                    if(navWrapper) navWrapper.classList.add('disabled-nav');
+                    
+                    const navBtns = document.querySelectorAll('.nav-btn');
+                    navBtns.forEach(btn => { btn.innerText = '赋能中'; });
+                    
+                    document.body.classList.add('theme-B');
+                    
+                    aiBtn.innerText = '跃迁中...';
+                    aiBtn.style.animation = 'none';
+                    aiBtn.style.color = '#fff';
+                    aiBtn.style.borderColor = '#fff';
+                };
+
+                // 3. 触发水波纹转场
+                if (document.startViewTransition) {
+                    document.startViewTransition(applyTheme);
+                } else {
+                    applyTheme(); // 降级兼容旧浏览器
+                }
+
+                // 4. 异步唤醒右侧数据点
+                const points = document.querySelectorAll('.data-point');
+                points.forEach((el, index) => {
+                    setTimeout(() => {
+                        el.style.opacity = '1';
+                        el.style.transform = 'translateX(0)';
+                        const spanObj = el.querySelector('span');
+                        const targetText = spanObj.getAttribute('data-target');
+                        setTimeout(() => { animateValue(spanObj, targetText, 1000); }, 150);
+                    }, index * 200);
+                });
+
+                // 5. 结尾解禁与恢复（严格对齐到 2秒 后触发）
+                setTimeout(() => {
+                    document.getElementById('golden-modal').classList.add('active');
+                    aiBtn.innerText = '赋能完成';
+                    
+                    if(resetBtn) {
+                        resetBtn.disabled = false; 
+                        resetBtn.innerText = '[ Reset ]'; 
+                    }
+                    
+                    const navWrapper = document.querySelector('.nav-wrapper');
+                    if(navWrapper) navWrapper.classList.remove('disabled-nav');
+                    
+                    const navBtns = document.querySelectorAll('.nav-btn');
+                    navBtns.forEach(btn => {
+                        const onclickStr = btn.getAttribute('onclick');
+                        if (onclickStr) {
+                            const pageId = parseInt(onclickStr.match(/\d+/)[0]);
+                            const item = navItems.find(nav => nav.id === pageId);
+                            if (item) btn.innerText = item.name;
+                        }
+                    });
+                }, 2000); 
+            });
+        }
+    });
+</script>
+</body>
+</html>
