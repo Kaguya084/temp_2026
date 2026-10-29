@@ -1,19 +1,30 @@
+<!--
+  ========================================================================
+   Project Labyrinth · 智造跃迁 (Smart Manufacturing Shift)
+  ------------------------------------------------------------------------
+   研发团队：大连理工大学 26级 第2组
+   当前版本：v1.1.0 (首个稳定发布版)
+   技术架构：Vanilla HTML / CSS / JS | 零依赖纯前端单文件系统
+  ------------------------------------------------------------------------
+   【一、关于 Page ID 与开发顺序的说明】
+   1. 本文件中的 <div id="pageX"> 数字编号，对应早期开发时的构建顺序，而非真实展示顺位。
+   2. 真实展示顺位（1 -> 2 -> 6 -> 3 -> 5 -> 4）由顶部导航 data-page 属性和 JS switchPage() 调度。
+   3. page6（赋能现场）是后期追加的模块，逻辑上安插在第二位展示，请勿随意修改 DOM 物理位置。
+
+   【二、全局响应式断点规划（统一阈值）】
+   1. 默认状态 ( > 1300px )：桌面大屏，三列画廊、导航居中。
+   2. @media (max-width: 1300px)：中型屏幕，画廊自动隐藏第三列变两列，Page 2 内部元素缩小。
+   3. @media (max-width: 1024px)：平板竖向，开启顶部跑马灯，Page 2 转为垂直堆叠。
+   4. @media (max-width: 880px) ：手机/极限窄屏，全面变单列、缩小字号、防爆宽度、禁用水波防撕裂。
+  ========================================================================
+-->
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>智造跃迁 - AI重塑中国制造</title>
 <style>
-    /* 
-     * ================= 【全局响应式断点规划（统一阈值）】 =================
-     * 1. 默认状态 ( > 1300px )：桌面大屏，三列画廊、导航居中。
-     * 2. @media (max-width: 1300px)：中型屏幕，画廊自动隐藏第三列变两列，Page 2 内部元素缩小。
-     * 3. @media (max-width: 1024px)：平板竖向，开启顶部跑马灯，Page 2 转为垂直堆叠。
-     * 4. @media (max-width: 880px) ：手机/极限窄屏，全面变单列、缩小字号、防爆宽度。
-     * ====================================================================
-     */
-
     /* ================= 1. 主题变量配置 ================= */
     /* 默认：A 风格（工业风 - 传统制造阵痛期） */
     :root { 
@@ -60,7 +71,7 @@
     body { 
         background: var(--bg); color: var(--text); 
         font-family: 'Consolas', 'Courier New', 'Microsoft YaHei', 'PingFang SC', monospace; 
-        overflow-x: hidden; overflow-y: auto; 
+        overflow-x: hidden; overflow-y: visible; 
         min-height: 100vh; position: relative;
         display: flex; flex-direction: column;
     }
@@ -103,30 +114,39 @@
     .fade-top { top: 0; background: linear-gradient(to bottom, var(--bg) 10%, transparent 100%); }
     .fade-bottom { bottom: 0; background: linear-gradient(to top, var(--bg) 10%, transparent 100%); }
 
-    /* ================= 4. 顶部导航栏 (无缝跑马灯) ================= */
+    /* ================= 4. 顶部导航栏 (无缝跑马灯 & 可拖拽) ================= */
     .nav-wrapper {
-        width: calc(100% - 40px);
-        margin: 0 auto;
-        overflow: hidden; 
-        padding: 30px 0 15px;
+        width: 100%;
+        position: relative;
+        overflow: hidden;
+        padding: 16px 0;
         display: flex;
-        justify-content: center; 
-        -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
-        mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+        justify-content: center;
     }
 
+    /* 左右物理渐隐遮罩 */
+    .nav-wrapper::before, .nav-wrapper::after {
+        content: ''; position: absolute; top: 0; bottom: 0; width: 80px;
+        z-index: 4; pointer-events: none;
+    }
+    .nav-wrapper::before { left: 0; background: linear-gradient(90deg, var(--bg), transparent); }
+    .nav-wrapper::after { right: 0; background: linear-gradient(270deg, var(--bg), transparent); }
+
+    /* 轨道 */
     .nav-track {
-        display: flex;
-        width: max-content;
+        display: flex; 
+        width: max-content; 
+        will-change: transform; 
+        user-select: none;
     }
 
+    /* 组 */
     .nav-group {
         display: flex;
         gap: 15px;
         padding-right: 15px; 
     }
-
-    .nav-group:nth-child(2) { display: none; }
+    /* 绝对不要加 .nav-group:nth-child(2) { display: none; } 否则克隆的组会被吞掉！ */
 
     .nav-btn {
         background: rgba(0,0,0,0.2) !important;
@@ -136,10 +156,32 @@
         cursor: pointer; transition: 0.3s; letter-spacing: 1px; white-space: nowrap;
         flex-shrink: 0; 
         box-shadow: none !important; 
+        -webkit-user-drag: none !important; /* 禁用原生拖拽 */
+        user-select: none; /* 禁用选中 */
     }
     .nav-btn:hover, .nav-btn.active {
         background: rgba(255,255,255,0.05) !important; 
         color: var(--cyan); border-color: var(--cyan);
+    }
+
+    /* 未赋能前的导航锁定样式：视觉灰化 + 点击可弹提示，不再 pointer-events:none */
+    .nav-btn.locked {
+        opacity: 0.3;
+        cursor: not-allowed; 
+        filter: grayscale(1);
+    }
+    /* 压掉 locked 按钮的 hover 高亮，避免“看起来能点” */
+    .nav-btn.locked:hover {
+        background: rgba(0,0,0,0.2) !important;
+        color: var(--text);
+        border-color: var(--dark-cyan);
+        box-shadow: none !important;
+        text-shadow: none;
+    }
+    body.theme-B .nav-btn.locked:hover {
+        background: rgba(0,20,40,0.8) !important;
+        box-shadow: none !important;
+        text-shadow: none;
     }
 
     body.theme-B .nav-btn { background: rgba(0,20,40,0.8) !important; }
@@ -149,17 +191,32 @@
         text-shadow: 0 0 5px var(--cyan);
     }
 
-    @keyframes scrollNav {
-        0% { transform: translateX(0); }
-        100% { transform: translateX(-50%); }
+    /* 小屏遮罩缩小 */
+    @media (max-width: 1024px) {
+        .nav-wrapper::before, .nav-wrapper::after { width: 40px; }
     }
 
     /* ================= 5. 页面容器与通用元素 ================= */
     .page { 
-        display: none; flex: 1; width: 100%; padding: 20px 60px 60px; 
+        display: flex; flex: 1; width: 100%; padding: 20px 60px 60px; 
         flex-direction: column; animation: fadeIn 0.5s ease; 
     }
-    .page.active { display: flex; }
+    /* 有 JS 时恢复单页切换；无 JS 时所有页面默认展开为长页 */
+    html.js-ready .page { display: none; }
+    html.js-ready .page.active { display: flex; }
+
+    /* 无 JS 且浏览器支持 :has 时，用 :target 实现单页切换，避免变成长竖列 */
+    @supports selector(:has(*)) {
+        html:not(.js-ready) .page { display: none; }
+        html:not(.js-ready) #page1 { display: flex; }
+        html:not(.js-ready) .page:target { display: flex; }
+        html:not(.js-ready) body:has(.page:target) #page1:not(:target) { display: none; }
+        /* 无 JS 跳到赋能现场时，同样切换成科技蓝 */
+        body:has(#page6:target) {
+            --bg: #030814; --cyan: #00e5ff; --dark-cyan: #006b80;
+            --red: #ff3366; --text: #e0f7fa;
+        }
+    }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
     /* --- Page 1: 宏观背景 --- */
@@ -212,7 +269,7 @@
     .data-point { 
         font-size: 1.4rem; margin: 25px 0; padding-left: 20px; border-left: 4px solid var(--cyan); 
         display: flex; justify-content: space-between; align-items: center; gap: 10px;
-        opacity: 0; transform: translateX(30px); transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+        opacity: 0.28; transform: translateX(0); transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
     .data-point span { 
         color: var(--cyan); font-size: 1.8rem; font-weight: bold; text-shadow: none; 
@@ -403,13 +460,19 @@
         .nav-wrapper { justify-content: flex-start; }
         .nav-track { animation: scrollNav 35s linear infinite; }
         .nav-group:nth-child(2) { display: flex; }
-        
-        /* 【核心修复】在中等窗口下，直接干掉三列布局，改为垂直堆叠 */
+
+        #page2 { justify-content: center; } /* 让垂直堆叠后的内容在页面内居中 */
+
+        /* 【核心修复】在中等窗口下，垂直堆叠，并限制最大宽度居中留白 */
         .interactive-container { 
             flex-direction: column; 
             flex-wrap: nowrap; 
             height: auto; 
+            flex: none; /* 新增：取消 flex 撑满高度，让内容紧凑排列 */
             gap: 30px;
+            max-width: 550px;
+            margin: 0 auto;
+            width: 100%;
         }
         .panel { 
             width: 100%; 
@@ -601,9 +664,615 @@
         cursor: not-allowed;
         pointer-events: none;
     }
+    /* ================= 9. 真实影像系统（本次新增） ================= */
+    .eyebrow {
+        font-size: 0.7rem; letter-spacing: 4px; color: var(--cyan);
+        text-transform: uppercase; opacity: 0.8;
+    }
+
+    /* --- Page 1 实景拼贴 --- */
+    .hero-collage {
+        display: grid; grid-template-columns: 1.7fr 1fr; gap: 8px;
+        height: clamp(280px, 38vh, 430px); margin-bottom: 26px;
+    }
+    .hero-main, .hero-side figure {
+        position: relative; overflow: hidden; margin: 0;
+        border: 1px solid var(--dark-cyan); background: #000;
+    }
+    .hero-main img, .hero-side img {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        object-fit: cover; display: block;
+        filter: brightness(0.66) saturate(0.9);
+        transition: transform 1.2s ease, filter 0.8s ease;
+    }
+    .hero-main:hover img { transform: scale(1.035); filter: brightness(0.78) saturate(1); }
+    .hero-side { display: grid; grid-template-rows: 1fr 1fr; gap: 8px; }
+    .hero-copy {
+        position: absolute; inset: 0; z-index: 2;
+        display: flex; flex-direction: column; justify-content: center;
+        padding: 0 clamp(22px, 4vw, 64px);
+        background: linear-gradient(90deg, rgba(8,10,13,0.9), rgba(8,10,13,0.45) 58%, rgba(8,10,13,0.05));
+    }
+    .hero-copy .macro-title {
+        text-align: left; margin-bottom: 12px; letter-spacing: 8px;
+        font-size: clamp(2rem, 3.6vw, 3.4rem); line-height: 1.2;
+    }
+    .hero-copy .macro-subtitle {
+        text-align: left; margin: 0; font-size: 1rem;
+        letter-spacing: 5px; opacity: 0.75;
+    }
+    .hero-tag {
+        position: absolute; right: 14px; bottom: 12px; z-index: 2;
+        font-size: 0.66rem; letter-spacing: 2px; color: rgba(255,255,255,0.7);
+        border: 1px solid rgba(255,255,255,0.25); padding: 4px 8px;
+        background: rgba(0,0,0,0.45);
+    }
+    body.theme-B .hero-copy { background: linear-gradient(90deg, rgba(1,4,12,0.92), rgba(1,4,12,0.4) 60%, transparent); }
+
+    /* --- Page 2 痛点/跃迁面板实景底图 --- */
+    #page2 .panel { overflow: hidden; background-size: cover; background-position: center; }
+    #page2 .panel::after {
+        content: ''; position: absolute; inset: 0; z-index: 0;
+        background: linear-gradient(180deg, rgba(10,12,16,0.88), rgba(10,12,16,0.95));
+    }
+    body.theme-B #page2 .panel::after {
+        background: linear-gradient(180deg, rgba(3,8,20,0.85), rgba(3,8,20,0.95));
+    }
+    #page2 .panel > * { position: relative; z-index: 1; }
+    #page2 .panel:first-child { background-image: url('assets/img/wall-old.jpg'); }
+    #page2 #right-panel { background-image: url('assets/img/wall-control.jpg'); }
+
+    /* --- Page 3 影像墙 --- */
+    .page3-head { text-align: center; margin-bottom: 6px; }
+    .page3-head h2 { border: none; margin-bottom: 8px; font-size: 2.4rem; }
+    .page3-head p {
+        font-size: 0.85rem; letter-spacing: 3px; opacity: 0.55; margin-bottom: 4px;
+    }
+    #page3 .gallery-container {
+        display: block; overflow: visible; margin-top: 26px; height: auto;
+        -webkit-mask-image: none; mask-image: none;
+    }
+    .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .photo-grid .gallery-item {
+        width: auto; height: auto; aspect-ratio: 16 / 9;
+        animation: fadeIn 0.7s ease both;
+    }
+    .photo-grid .gallery-item:nth-child(2) { animation-delay: 0.06s; }
+    .photo-grid .gallery-item:nth-child(3) { animation-delay: 0.12s; }
+    .photo-grid .gallery-item:nth-child(4) { animation-delay: 0.18s; }
+    .photo-grid .gallery-item:nth-child(5) { animation-delay: 0.24s; }
+    .photo-grid .gallery-item:nth-child(6) { animation-delay: 0.3s; }
+    .gallery-item { cursor: pointer; background: #000; }
+    .gallery-item img {
+        width: 100%; height: 100%; object-fit: cover; display: block;
+        opacity: 0.7; filter: grayscale(0.3) contrast(1.05);
+        transition: transform 0.7s ease, opacity 0.5s ease, filter 0.5s ease;
+    }
+    .gallery-item:hover img { opacity: 1; transform: scale(1.06); filter: grayscale(0) contrast(1.05); }
+    .gallery-item:hover { box-shadow: 0 0 26px rgba(0,229,255,0.18); }
+    .gallery-hint {
+        text-align: center; font-size: 0.72rem; letter-spacing: 3px;
+        opacity: 0.4; margin-top: 18px;
+    }
+
+    /* --- Page 6 AI 赋能现场 --- */
+    .ai-hero {
+        position: relative; height: clamp(260px, 36vh, 400px);
+        border: 1px solid var(--dark-cyan); overflow: hidden; margin-bottom: 24px;
+        background: #000;
+    }
+    .ai-hero img {
+        width: 100%; height: 100%; object-fit: cover;
+        filter: brightness(0.5) saturate(0.85);
+        transform: scale(1.02);
+    }
+    .ai-hero::after {
+        content: ''; position: absolute; inset: 0;
+        background:
+            linear-gradient(90deg, rgba(2,6,16,0.94), rgba(2,6,16,0.55) 55%, rgba(2,6,16,0.1)),
+            linear-gradient(0deg, rgba(2,6,16,0.7), transparent 55%);
+    }
+    .ai-hero-copy {
+        position: absolute; inset: 0; z-index: 2;
+        display: flex; flex-direction: column; justify-content: center;
+        padding: 0 clamp(22px, 4.5vw, 70px);
+    }
+    .ai-title {
+        font-size: clamp(2.1rem, 4.4vw, 3.9rem); letter-spacing: 8px;
+        border: none; margin: 8px 0 14px; padding: 0; color: var(--cyan);
+        text-shadow: 0 0 34px rgba(0,229,255,0.35); line-height: 1.2;
+    }
+    .ai-sub {
+        font-size: 1rem; line-height: 1.9; max-width: 760px;
+        color: #d7f7ff; opacity: 0.85; letter-spacing: 1px;
+    }
+    .ai-stats { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+    .ai-stats span {
+        border: 1px solid rgba(0,229,255,0.35); background: rgba(0,22,40,0.55);
+        color: #b9efff; padding: 6px 12px; font-size: 0.76rem; letter-spacing: 1px;
+    }
+
+    .flow {
+        display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr;
+        gap: 8px; align-items: stretch; margin-bottom: 26px;
+    }
+    .flow-step {
+        border: 1px solid var(--dark-cyan); background: rgba(0,18,36,0.42);
+        padding: 14px 16px; transition: border-color 0.3s, background 0.3s;
+    }
+    body:not(.theme-B) .flow-step { background: rgba(0,0,0,0.25); }
+    .flow-step:hover { border-color: var(--cyan); background: rgba(0,229,255,0.07); }
+    .flow-step b { font-size: 0.66rem; letter-spacing: 3px; color: var(--cyan); opacity: 0.8; }
+    .flow-step h4 { font-size: 0.95rem; color: #fff; margin: 7px 0 5px; letter-spacing: 1px; }
+    .flow-step p { font-size: 0.74rem; line-height: 1.55; opacity: 0.55; }
+    .flow-arrow { align-self: center; color: var(--cyan); opacity: 0.45; font-size: 1rem; }
+
+    .case-grid {
+        display: grid; grid-template-columns: repeat(3, 1fr);
+        gap: 16px; margin-bottom: 28px;
+    }
+    .case-card {
+        border: 1px solid var(--dark-cyan); background: rgba(0,15,30,0.5);
+        display: flex; flex-direction: column; cursor: pointer; overflow: hidden;
+        transition: transform 0.35s ease, border-color 0.35s, box-shadow 0.35s;
+    }
+    .case-card:hover, .case-card:focus-visible {
+        border-color: var(--cyan); transform: translateY(-4px);
+        box-shadow: 0 0 28px rgba(0,229,255,0.16); outline: none;
+    }
+    .case-thumb { position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: #000; }
+    .case-thumb img {
+        width: 100%; height: 100%; object-fit: cover; opacity: 0.82;
+        transition: transform 0.7s ease, opacity 0.5s ease;
+    }
+    .case-card:hover .case-thumb img { transform: scale(1.06); opacity: 1; }
+    .case-index {
+        position: absolute; top: 9px; left: 9px; z-index: 2;
+        font-size: 0.66rem; letter-spacing: 2px; color: var(--cyan);
+        background: rgba(0,0,0,0.66); border: 1px solid rgba(0,229,255,0.3);
+        padding: 3px 7px;
+    }
+    .case-body { padding: 15px 17px 17px; display: flex; flex-direction: column; gap: 7px; flex: 1; }
+    .case-tag { font-size: 0.66rem; letter-spacing: 3px; color: var(--cyan); opacity: 0.85; }
+    .case-body h3 { font-size: 1.1rem; color: #fff; letter-spacing: 1px; }
+    .case-body p { font-size: 0.8rem; line-height: 1.65; opacity: 0.62; }
+    .case-more { margin-top: auto; padding-top: 6px; font-size: 0.74rem; letter-spacing: 1px; color: var(--cyan); opacity: 0.9; }
+
+    .video-feature {
+        display: grid; grid-template-columns: 1.65fr 1fr;
+        border: 1px solid var(--dark-cyan); background: rgba(0,15,30,0.5);
+        margin-bottom: 26px; overflow: hidden;
+    }
+    .video-frame { position: relative; aspect-ratio: 16 / 9; background: #000; min-height: 240px; overflow: hidden; cursor: pointer; }
+    .video-frame iframe, .video-frame video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; z-index: 3; display: none; }
+    .video-frame.playing iframe, .video-frame.playing video { display: block; }
+    .video-poster {
+        position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+        filter: brightness(0.5) saturate(0.85); z-index: 1; transition: filter 0.4s ease, transform 0.6s ease;
+    }
+    .video-frame:hover .video-poster { filter: brightness(0.62) saturate(0.95); transform: scale(1.02); }
+    .video-play {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2;
+        width: 66px; height: 66px; border-radius: 50%; border: 2px solid var(--cyan);
+        background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 0 30px rgba(0,229,255,0.25); transition: transform 0.3s;
+    }
+    .video-play::after {
+        content: ''; display: block; width: 0; height: 0; margin-left: 5px;
+        border-top: 10px solid transparent; border-bottom: 10px solid transparent;
+        border-left: 16px solid var(--cyan);
+    }
+    .video-frame:hover .video-play { transform: translate(-50%, -50%) scale(1.08); }
+    .video-label {
+        position: absolute; left: 16px; bottom: 14px; z-index: 2;
+        font-size: 0.72rem; letter-spacing: 2px; color: #dff;
+        background: rgba(0,0,0,0.55); border: 1px solid rgba(0,229,255,0.3); padding: 4px 9px;
+    }
+    .video-frame.playing .video-poster,
+    .video-frame.playing .video-play,
+    .video-frame.playing .video-label { display: none; }
+    .video-info { padding: 24px 26px; display: flex; flex-direction: column; gap: 10px; }
+    .video-kicker { font-size: 0.66rem; letter-spacing: 3px; color: var(--cyan); }
+    .video-info h3 { font-size: 1.2rem; color: #fff; letter-spacing: 1px; line-height: 1.4; }
+    .video-info p { font-size: 0.8rem; line-height: 1.7; opacity: 0.62; }
+    .video-points { list-style: none; display: flex; flex-direction: column; gap: 6px; margin: 2px 0 4px; }
+    .video-points li { font-size: 0.75rem; opacity: 0.55; padding-left: 14px; position: relative; }
+    .video-points li::before { content: '·'; position: absolute; left: 0; color: var(--cyan); font-weight: bold; }
+    .video-tabs { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+    .vtab {
+        text-align: left; background: transparent; border: 1px solid var(--dark-cyan);
+        color: var(--text); padding: 10px 12px; font-family: inherit;
+        font-size: 0.78rem; letter-spacing: 1px; cursor: pointer; transition: 0.3s;
+    }
+    .vtab:hover, .vtab.active {
+        border-color: var(--cyan); color: var(--cyan); background: rgba(0,229,255,0.07);
+    }
+    .video-link { font-size: 0.75rem; color: var(--cyan); text-decoration: none; opacity: 0.8; margin-top: 10px; }
+    .video-link:hover { opacity: 1; text-decoration: underline; }
+    .video-hint { font-size: 0.66rem; opacity: 0.35; margin-top: 2px; }
+
+    .asset-note {
+        font-size: 0.7rem; line-height: 1.8; opacity: 0.42;
+        border-top: 1px dashed var(--dark-cyan); padding-top: 12px;
+    }
+    .asset-note a { color: var(--cyan); }
+
+    /* --- 案例详情弹窗 --- */
+    .case-sheet {
+        display: grid; grid-template-columns: 1.05fr 1fr;
+        width: min(1080px, 94vw); max-height: 88vh; position: relative;
+        background: var(--bg); border: 1px solid var(--cyan); overflow: hidden;
+        transform: scale(0.94); transition: transform 0.45s cubic-bezier(0.175,0.885,0.32,1.275);
+        box-shadow: 0 0 80px rgba(0,229,255,0.12);
+    }
+    .modal.active .case-sheet { transform: scale(1); }
+    .case-sheet-img { background: #000; min-height: 300px; }
+    .case-sheet-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .case-sheet-body { padding: 38px 40px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+    .case-sheet-body h2 { border: none; margin: 0; padding: 0; font-size: 1.9rem; letter-spacing: 2px; }
+    .case-sheet-body > p { font-size: 0.95rem; line-height: 1.8; opacity: 0.75; }
+    .fact-list { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+    .fact-list li {
+        font-size: 0.84rem; line-height: 1.6; padding-left: 16px; position: relative; opacity: 0.8;
+    }
+    .fact-list li::before { content: '▸'; position: absolute; left: 0; color: var(--cyan); }
+    .case-source { font-size: 0.7rem; opacity: 0.4; margin-top: auto; padding-top: 14px; border-top: 1px dashed var(--dark-cyan); }
+    .sheet-close {
+        position: absolute; top: 12px; right: 14px; z-index: 3;
+        width: 34px; height: 34px; background: rgba(0,0,0,0.5);
+        border: 1px solid var(--dark-cyan); color: var(--text); cursor: pointer;
+        font-family: inherit; font-size: 1.1rem; line-height: 1; transition: 0.3s;
+    }
+    .sheet-close:hover { border-color: var(--cyan); color: var(--cyan); }
+
+    /* --- 图片灯箱 --- */
+    .lightbox {
+        position: fixed; inset: 0; z-index: 1150; background: rgba(0,0,0,0.92);
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        opacity: 0; pointer-events: none; transition: opacity 0.35s; backdrop-filter: blur(6px);
+    }
+    .lightbox.active { opacity: 1; pointer-events: auto; }
+    .lightbox img {
+        max-width: 90vw; max-height: 80vh; border: 1px solid var(--cyan);
+        box-shadow: 0 0 60px rgba(0,229,255,0.16); object-fit: contain;
+    }
+    .lightbox-cap { margin-top: 14px; font-size: 0.85rem; letter-spacing: 2px; color: #e6faff; text-align: center; }
+    .lightbox-close {
+        position: absolute; top: 18px; right: 24px; width: 40px; height: 40px;
+        background: transparent; border: 1px solid var(--cyan); color: var(--cyan);
+        font-size: 1.3rem; cursor: pointer; font-family: inherit;
+    }
+
+    /* --- 轻提示 --- */
+    .page-toast {
+        position: fixed; left: 50%; bottom: 86px; z-index: 1200;
+        transform: translate(-50%, 18px); opacity: 0; pointer-events: none;
+        background: rgba(0,20,40,0.94); border: 1px solid var(--cyan);
+        color: var(--cyan); padding: 10px 22px; font-size: 0.82rem; letter-spacing: 2px;
+        transition: 0.4s ease;
+    }
+    .page-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    /* --- 进场动画 --- */
+    .reveal { opacity: 0; transform: translateY(16px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .reveal.in { opacity: 1; transform: none; }
+
+    /* --- 新增模块响应式 --- */
+    /* Page 1 三张卡片在 1440/1600 宽度下也能排成一行 */
+    .macro-card {
+        flex: 1 1 360px; max-width: 560px; min-height: 250px; padding: 30px 34px;
+    }
+    .macro-card h3 { font-size: 1.65rem; margin-bottom: 14px; }
+    .macro-card p { font-size: 1.05rem; line-height: 1.75; }
+    @media (max-width: 880px) {
+        .macro-card { max-width: none; min-height: auto; padding: 15px; }
+    }
+
+    /* Page 5 四张 Phase 卡片：大屏四列，中屏两列，手机单列 */
+    .plan-flex { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; align-items: stretch; flex: none; }
+    .plan-card { width: auto; min-width: 0; }
+    #page5 { justify-content: center; }
+    @media (max-width: 1700px) { .plan-flex { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 880px) {
+        .plan-flex { grid-template-columns: 1fr; }
+        .photo-grid .img-placeholder { font-size: 0.78rem; line-height: 1.35; white-space: normal; }
+        .photo-grid .img-sub { font-size: 0.64rem; }
+    }
+    @media (max-width: 1300px) {
+        .case-grid { grid-template-columns: repeat(2, 1fr); }
+        .hero-collage { height: clamp(250px, 34vh, 360px); }
+        .flow { grid-template-columns: repeat(4, 1fr); }
+        .flow-arrow { display: none; }
+    }
+    @media (max-width: 1024px) {
+        .video-feature { grid-template-columns: 1fr; }
+        .case-sheet { grid-template-columns: 1fr; max-height: 90vh; overflow-y: auto; }
+        .case-sheet-img { min-height: 200px; max-height: 300px; }
+        .case-sheet-body { padding: 26px 24px; }
+    }
+    @media (max-width: 880px) {
+        .hero-collage { grid-template-columns: 1fr; height: 230px; margin-bottom: 18px; }
+        .hero-side { display: none; }
+        .hero-copy { padding: 0 18px; }
+        .hero-copy .macro-title { font-size: 1.7rem; letter-spacing: 4px; }
+        .hero-copy .macro-subtitle { font-size: 0.78rem; letter-spacing: 2px; }
+        .page3-head h2 { font-size: 1.5rem !important; }
+        .page3-head p { font-size: 0.7rem; letter-spacing: 1px; }
+        .gallery-hint { font-size: 0.62rem; }
+        #page3 .photo-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+        .photo-grid .gallery-item { aspect-ratio: 4 / 3; }
+
+        .ai-hero { height: 300px; margin-bottom: 18px; }
+        .ai-hero-copy { padding: 0 18px; justify-content: flex-end; padding-bottom: 22px; }
+        .ai-title { font-size: 1.7rem; letter-spacing: 4px; }
+        .ai-sub { font-size: 0.8rem; line-height: 1.7; }
+        .ai-sub br { display: none; }
+        .ai-stats { margin-top: 12px; gap: 6px; }
+        .ai-stats span { font-size: 0.64rem; padding: 4px 8px; }
+
+        .flow { grid-template-columns: 1fr 1fr; }
+        .flow-arrow { display: none; }
+        .flow-step { padding: 12px; }
+        .flow-step h4 { font-size: 0.85rem; }
+        .flow-step p { font-size: 0.68rem; }
+
+        .case-grid { grid-template-columns: 1fr; gap: 12px; }
+        .case-body h3 { font-size: 1rem; }
+
+        .video-info { padding: 18px; }
+        .video-info h3 { font-size: 1rem; }
+        .video-info p { font-size: 0.74rem; }
+        .vtab { font-size: 0.72rem; padding: 9px 10px; }
+
+        .case-sheet-body h2 { font-size: 1.4rem; }
+        .case-sheet-body { padding: 20px 18px; }
+        .fact-list li { font-size: 0.78rem; }
+        .lightbox img { max-width: 94vw; max-height: 74vh; }
+        .page-toast { width: 86vw; text-align: center; font-size: 0.72rem; bottom: 70px; }
+    }
+
+    /* ================= 10. 手机端兼容性补丁 ================= */
+    a.nav-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        text-decoration: none;
+    }
+    a.btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        text-decoration: none;
+    }
+    .noscript-tip {
+        max-width: 900px; margin: 0 auto 10px; padding: 10px 14px;
+        border: 1px dashed var(--cyan); color: var(--cyan);
+        font-size: 0.8rem; line-height: 1.7; text-align: center;
+    }
+    .page { scroll-margin-top: 64px; }
+    html { overflow-x: hidden; overflow-x: clip; }
+    body { min-height: 100vh; min-height: 100dvh; overflow-x: clip; }
+
+    /* 手机/平板：导航不再自动跑马灯，改为可横向滑动、可点击的菜单 */
+    /* 回滚到基于稳定视口宽度的媒体查询，防止动态计算导致高度抖动 */
+    @media (max-width: 1024px) {
+        .nav-wrapper {
+            justify-content: flex-start;
+            overflow: hidden;
+            padding: 16px 0; /* 保持高度恒定，禁止 padding 变化 */
+            touch-action: pan-y;
+            cursor: grab;
+        }
+        .nav-wrapper.is-dragging { cursor: grabbing; }
+        .nav-track {
+            animation: none !important;
+            padding-left: 40px;
+        }
+        .nav-btn { flex-shrink: 0; }
+    }
+
+    @media (max-width: 880px) {
+        .nav-wrapper {
+            position: sticky; top: 0; z-index: 300;
+            padding: 9px 12px;
+            background: rgba(17, 20, 24, 0.94);
+            border-bottom: 1px solid var(--dark-cyan);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+        }
+        body.theme-B .nav-wrapper { background: rgba(3, 8, 20, 0.94); }
+        .nav-btn { padding: 9px 14px; font-size: 0.8rem; min-height: 38px; }
+        .page { padding-bottom: 56px !important; }
+        .data-point { opacity: 0.45; }
+
+        /* 手机端最小可读字号，避免 10px 小字 */
+        .ai-stats span { font-size: 0.7rem; }
+        .flow-step p { font-size: 0.74rem; }
+        .case-tag { font-size: 0.7rem; }
+        .case-body p { font-size: 0.84rem; }
+        .video-kicker, .video-points li { font-size: 0.76rem; }
+        .video-info p { font-size: 0.82rem; }
+        .asset-note { font-size: 0.72rem; line-height: 1.9; }
+        .gallery-hint { font-size: 0.7rem; }
+
+        .sheet-close, .lightbox-close { width: 42px; height: 42px; font-size: 1.4rem; }
+        .case-sheet-body, .case-sheet { -webkit-overflow-scrolling: touch; }
+    }
+
+    @media (max-width: 480px) {
+        .hero-copy .macro-title {
+            font-size: 1.45rem;
+            font-size: clamp(1.22rem, 6.2vw, 1.55rem);
+            letter-spacing: 2px;
+            white-space: nowrap;
+        }
+        .hero-copy .macro-subtitle { font-size: 0.72rem; letter-spacing: 2px; }
+        #page3 .photo-grid { grid-template-columns: 1fr; }
+        .photo-grid .gallery-item { aspect-ratio: 16 / 9; }
+        .photo-grid .img-placeholder { font-size: 0.95rem; }
+        .photo-grid .img-sub { font-size: 0.7rem; }
+        .ai-title { font-size: 1.55rem; letter-spacing: 3px; }
+        .youth-quote {
+            font-size: 1.4rem;
+            font-size: clamp(1.28rem, 5.6vw, 1.7rem);
+            line-height: 1.55;
+        }
+        .youth-author { margin-bottom: 30px; }
+    }
+
+    /* 手机端 Page 2：阵痛 / 跃迁左右对照，AI 按钮放在两栏下方 */
+    @media (max-width: 600px) {
+        #page2 .interactive-container {
+            display: grid; grid-template-columns: 1fr 1fr;
+            grid-template-areas: "pain gain" "cta cta";
+            gap: 10px; height: auto; width: 100%; align-items: stretch; align-content: center;
+        }
+        #page2 .panel:first-child { grid-area: pain; }
+        #page2 #right-panel { grid-area: gain; }
+        #page2 .center {
+            grid-area: cta; width: 100%; margin: 6px 0 0; gap: 8px;
+        }
+        #page2 .panel { padding: 12px 10px; height: auto; min-height: 0; min-width: 0; }
+        #page2 .panel h2 {
+            font-size: 0.92rem; letter-spacing: 0; line-height: 1.4;
+            margin-bottom: 12px; padding-bottom: 8px;
+        }
+        #page2 .pain-point, #page2 .data-point {
+            flex-direction: column; align-items: flex-start; gap: 3px;
+            margin: 12px 0; padding-left: 10px; font-size: 0.76rem; border-left-width: 3px;
+        }
+        #page2 .pain-point span { font-size: 0.84rem; white-space: normal; }
+        #page2 .data-point span { font-size: 0.92rem; white-space: normal; }
+        #page2 .source-tag { font-size: 0.6rem; line-height: 1.5; margin-top: 10px; padding-top: 8px; }
+        #page2 .btn { width: 100%; padding: 14px 18px; font-size: 1.2rem; letter-spacing: 2px; }
+        #page2 .reset-btn { margin-top: 0; }
+    }
+
+    /* 横屏手机：压缩头图，避免一屏全是图 */
+    @media (max-height: 520px) and (max-width: 1024px) {
+        .hero-collage { height: 165px; }
+        .hero-copy .macro-title { font-size: 1.3rem; letter-spacing: 2px; }
+        .ai-hero { height: 220px; }
+        .page { padding-top: 10px !important; }
+    }
+
+    /* 手机地址栏会伸缩，弹窗高度用 dvh 防止被裁切 */
+    .case-sheet { max-height: 88vh; max-height: 88dvh; }
+    .lightbox img { max-height: 80vh; max-height: 80dvh; }
+
+    /* 触控优化 */
+    .nav-btn, .btn, .vtab, .case-card, .gallery-item, .video-frame,
+    .sheet-close, .lightbox-close {
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* iOS 毛玻璃前缀 */
+    .modal { -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); }
+    .lightbox { -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+
+    /* 旧内核（不支持 aspect-ratio）回退 */
+    @supports not (aspect-ratio: 16 / 9) {
+        .case-thumb { height: 180px; }
+        .photo-grid .gallery-item { height: 190px; }
+        .video-frame { height: 220px; }
+    }
+
+    /* ================= 11. Page 3 自动滚动影像墙（可拖动） ================= */
+    .marquee-row {
+        --edge: 72px;
+        position: relative; overflow: hidden; margin-bottom: 12px;
+        touch-action: pan-y; cursor: grab;
+    }
+    .marquee-row::before,
+    .marquee-row::after {
+        content: ''; position: absolute; top: 0; bottom: 0; width: var(--edge);
+        z-index: 4; pointer-events: none;
+    }
+    .marquee-row::before { left: 0; background: linear-gradient(90deg, var(--bg), transparent); }
+    .marquee-row::after { right: 0; background: linear-gradient(270deg, var(--bg), transparent); }
+    .marquee-row:last-child { margin-bottom: 0; }
+    .marquee-row.is-dragging { cursor: grabbing; }
+    .marquee-track {
+        display: flex; gap: 14px; width: max-content; padding-left: var(--edge);
+        will-change: transform; user-select: none;
+    }
+    .marquee-track .gallery-item {
+        flex: 0 0 auto;
+        width: clamp(240px, 24vw, 360px);
+        height: clamp(140px, 14vw, 200px);
+        animation: none;
+    }
+    .marquee-track .gallery-item img { pointer-events: none; }
+    #page3 .gallery-container.marquee-mode { margin-top: 20px; }
+    @media (max-width: 880px) {
+        .marquee-row { --edge: 48px; }
+    }
+
+    /* ================= 12. AI 赋能现场 · 数据看板 ================= */
+    .data-board {
+        border: 1px solid var(--dark-cyan);
+        background: rgba(0, 18, 36, 0.42);
+        padding: 18px 20px 14px;
+        margin-bottom: 26px;
+    }
+    body:not(.theme-B) .data-board { background: rgba(0, 0, 0, 0.25); }
+    .data-board-head {
+        display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+        margin-bottom: 14px;
+    }
+    .data-board-head h3 { font-size: 1.05rem; color: #fff; letter-spacing: 1px; }
+    .data-grid {
+        display: grid; grid-template-columns: repeat(4, 1fr);
+        gap: 1px; background: var(--dark-cyan); border: 1px solid var(--dark-cyan);
+    }
+    .data-cell {
+        background: rgba(2, 10, 22, 0.92);
+        padding: 14px 16px; display: flex; flex-direction: column; gap: 5px;
+    }
+    body:not(.theme-B) .data-cell { background: rgba(10, 12, 16, 0.9); }
+    .data-cell b {
+        font-size: clamp(1.3rem, 2.2vw, 1.9rem); color: var(--cyan);
+        letter-spacing: 1px; line-height: 1.2;
+        text-shadow: 0 0 16px rgba(0, 229, 255, 0.25);
+    }
+    body:not(.theme-B) .data-cell b { text-shadow: none; }
+    .data-cell span { font-size: 0.8rem; color: var(--text); opacity: 0.8; line-height: 1.5; }
+    .data-source { font-size: 0.66rem; opacity: 0.4; line-height: 1.6; margin-top: 10px; }
+
+    @media (max-width: 880px) {
+        .data-board { padding: 14px 12px 12px; }
+        .data-board-head h3 { font-size: 0.95rem; }
+        .data-grid { grid-template-columns: 1fr 1fr; }
+        .data-cell { padding: 12px; }
+        .data-cell b { font-size: 1.35rem; }
+        .data-cell span { font-size: 0.74rem; }
+    }
+    @media (max-width: 480px) {
+        .data-grid { grid-template-columns: 1fr; }
+        .data-cell {
+            flex-direction: row; align-items: baseline; gap: 10px; padding: 10px 12px;
+        }
+        .data-cell b { font-size: 1.15rem; min-width: 92px; }
+        .data-cell span { font-size: 0.76rem; }
+    }
 </style>
+<noscript>
+<style>
+    /* JS 被禁用且不支持 :has 时，退化为长页模式 */
+    .page + .page { margin-top: 28px; border-top: 1px dashed var(--dark-cyan); }
+    .reveal { opacity: 1 !important; transform: none !important; }
+    .data-point { opacity: 0.65 !important; }
+</style>
+</noscript>
 </head>
 <body>
+
+<script>
+    // 尽早进入单页模式；若主脚本未能初始化，2.5 秒后回退为长页，保证内容始终可见
+    document.documentElement.classList.add('js-ready');
+    window.setTimeout(function () {
+        if (!document.body.classList.contains('app-ready')) {
+            document.documentElement.classList.remove('js-ready');
+        }
+    }, 2500);
+</script>
 
 <div class="frame">
     <div class="corner corner-tl"></div>
@@ -617,25 +1286,56 @@
 <div class="fade-bottom"></div>
 
 <div class="nav-wrapper">
-    <div class="nav-track"></div>
+    <div class="nav-track">
+        <div class="nav-group">
+            <a class="nav-btn active" href="#page1" data-page="1" data-name="宏观背景" onclick="return navGo(1)">宏观背景</a>
+            <a class="nav-btn" href="#page2" data-page="2" data-name="AI 赋能" onclick="return navGo(2)">AI 赋能</a>
+            <a class="nav-btn" href="#page6" data-page="6" data-name="赋能现场" onclick="return navGo(6)">赋能现场</a>
+            <a class="nav-btn" href="#page3" data-page="3" data-name="智造先锋" onclick="return navGo(3)">智造先锋</a>
+            <a class="nav-btn" href="#page5" data-page="5" data-name="未来展望" onclick="return navGo(5)">未来展望</a>
+            <a class="nav-btn" href="#page4" data-page="4" data-name="青年答卷" onclick="return navGo(4)">青年答卷</a>
+        </div>
+    </div>
 </div>
+
+<noscript>
+    <div class="noscript-tip">当前预览器未启用 JavaScript：仍可用顶部菜单切换 6 个模块；点“AI 赋能”会直接跳到「赋能现场」。完整动画、视频和图片放大请用 Chrome / Edge / Safari 打开。</div>
+</noscript>
 
 <!-- Page 1: 宏观背景 -->
 <div class="page active" id="page1">
-    <div class="macro-title">制造大国 · 智造强国</div>
-    <div class="macro-subtitle">从阵痛走向跃迁的交汇点</div>
+    <div class="hero-collage">
+        <div class="hero-main">
+            <img src="assets/img/hero-line.jpg" alt="汽车焊装车间的自动化产线" fetchpriority="high">
+            <div class="hero-copy">
+                <div class="macro-title">制造大国 · 智造强国</div>
+                <div class="macro-subtitle">从阵痛走向跃迁的交汇点</div>
+            </div>
+            <div class="hero-tag">REAL SCENE / 智造现场</div>
+        </div>
+        <div class="hero-side">
+            <figure>
+                <img src="assets/img/hero-robot.jpg" alt="车间中的六轴工业机器人">
+                <figcaption class="hero-tag">工业机器人 · 柔性产线</figcaption>
+            </figure>
+            <figure>
+                <img src="assets/img/hero-weld.jpg" alt="精密焊接火花">
+                <figcaption class="hero-tag">精密焊接 · 大国工匠</figcaption>
+            </figure>
+        </div>
+    </div>
     <div class="macro-flex">
         <div class="macro-card">
-            <h3>历史成就</h3>
-            <p>我国拥有全球最完整的工业体系，制造业规模连续多年位居世界第一。Made in China 遍布全球。</p>
+            <h3>【初始驱动模型】</h3>
+            <p>变量：y = f ( 庞大人口红利, 密集资源投入 )<br><br>分析：过去几十年，依靠要素驱动，中国制造完成了从无到有的规模扩张。</p>
         </div>
         <div class="macro-card">
-            <h3>现实挑战</h3>
-            <p>大而不强、全而不优。人口红利消退，核心技术受制于人，全球价值链中低端锁定亟待打破。</p>
+            <h3>【当前运行警告】</h3>
+            <p>参数变化：劳动力成本 ↑ / 资源环境约束 ↑ / 全球价值链高端锁定 ✖<br><br>分析：旧模型核心引擎失速，传统粗放型发展模式的边际效益已触顶。</p>
         </div>
         <div class="macro-card">
-            <h3>时代破局</h3>
-            <p>以人工智能为代表的新一代信息技术，正在与实体经济深度融合，催生新质生产力。</p>
+            <h3>【破局变量引入】</h3>
+            <p>新变量：[ 新质生产力 ] = 科技创新 × 数字化 × 人工智能<br><br>分析：既然旧路走不通，破局的关键就在于用 AI 算力和数字技术重塑实体经济。</p>
         </div>
     </div>
 </div>
@@ -652,7 +1352,7 @@
         </div>
         
         <div class="center">
-            <button class="btn" id="ai-btn">AI 赋能</button>
+            <a class="btn" id="ai-btn" href="#page6" role="button">AI 赋能</a>
             <!-- 【新增】挪入中心的次级重置按钮 -->
             <button class="reset-btn" id="reset-btn" onclick="resetDemo()">[ Reset ]</button>
         </div>
@@ -663,28 +1363,167 @@
             <div class="data-point" id="data2">智能制造装备规模 <span data-target="3.2万亿元">0</span></div>
             <div class="data-point" id="data3">AI赋能研发周期缩短 <span data-target="20%">0</span></div>
             <div class="data-point" id="data4">制造业机器人密度 <span data-target="392台/万人">0</span></div>
-            <div class="source-tag">* 数据来源：工信部、国家统计局、中国信通院</div>
+            <div class="source-tag">* 当前为AI辅助搜集的概览数据，正进行官方人工溯源，仅用于演示动画效果</div>
         </div>
+    </div>
+</div>
+
+<!-- Page 6: AI 赋能现场（由 AI 赋能按钮跳转） -->
+<div class="page" id="page6">
+    <div class="ai-hero">
+        <img src="assets/img/ai-hero.jpg" alt="数据中心机房中的服务器机柜">
+        <div class="ai-hero-copy">
+            <div class="eyebrow">MODULE 06 / AI EMPOWERMENT</div>
+            <h2 class="ai-title">AI赋能 · 智造现场</h2>
+            <p class="ai-sub">数据成为新的生产要素，算法成为新的生产工具。<br>从“机器换人”到“数据驱动”，六个现场正在发生。</p>
+            <div class="ai-stats">
+                <span>近万家 智能工厂</span>
+                <span>3.2万亿元 装备规模</span>
+                <span>392 台/万人 机器人密度</span>
+                <span>20% 研发周期缩短</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="data-board">
+        <div class="data-board-head">
+            <div class="eyebrow">DATA / 数说赋能</div>
+            <h3>AI 进入车间之后，这四个数字在变化</h3>
+        </div>
+        <div class="data-grid">
+            <div class="data-cell"><b>近万家</b><span>已建成智能工厂</span></div>
+            <div class="data-cell"><b>3.2万亿元</b><span>智能制造装备规模</span></div>
+            <div class="data-cell"><b>20%</b><span>AI 赋能研发周期缩短</span></div>
+            <div class="data-cell"><b>392台/万人</b><span>制造业机器人密度</span></div>
+        </div>
+        <p class="data-source">* 数据来源：工业和信息化部、国家统计局、中国信息通信研究院公开资料（截至最新公开数据）。</p>
+    </div>
+
+    <div class="flow">
+        <div class="flow-step"><b>01 / SENSE</b><h4>数据采集</h4><p>传感器、工业相机与设备日志，把车间变成可读的数据流。</p></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step"><b>02 / COMPUTE</b><h4>算力底座</h4><p>边缘节点与工业云协同，让推理在离产线最近的地方发生。</p></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step"><b>03 / MODEL</b><h4>模型算法</h4><p>视觉、时序与工业大模型，把经验沉淀为可复制的参数。</p></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step"><b>04 / ACT</b><h4>产线执行</h4><p>机器人、AGV 与控制系统接令，形成“感知—决策—执行”闭环。</p></div>
+    </div>
+
+    <div class="case-grid" id="case-grid">
+        <article class="case-card" onclick="openCase(0)" tabindex="0" role="button" aria-label="查看案例：无人化产线" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openCase(0);}">
+            <div class="case-thumb"><img src="assets/img/case-line.jpg" alt="无人化产线" loading="lazy"><span class="case-index">01</span></div>
+            <div class="case-body"><div class="case-tag">黑灯工厂 / LIGHTS-OUT</div><h3>无人化产线</h3><p>输送、装配与检测自动接力，车间可以关灯运行，人从操作者变成监控者。</p><span class="case-more">查看现场 →</span></div>
+        </article>
+        <article class="case-card" onclick="openCase(1)" tabindex="0" role="button" aria-label="查看案例：柔性制造单元" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openCase(1);}">
+            <div class="case-thumb"><img src="assets/img/case-robot.jpg" alt="柔性制造单元" loading="lazy"><span class="case-index">02</span></div>
+            <div class="case-body"><div class="case-tag">工业机器人 / ROBOTICS</div><h3>柔性制造单元</h3><p>六轴机器人配合视觉引导，完成焊接、搬运、装配等重复工序，节拍由算法统一调度。</p><span class="case-more">查看现场 →</span></div>
+        </article>
+        <article class="case-card" onclick="openCase(2)" tabindex="0" role="button" aria-label="查看案例：在线智能质检" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openCase(2);}">
+            <div class="case-thumb"><img src="assets/img/case-vision.jpg" alt="在线智能质检" loading="lazy"><span class="case-index">03</span></div>
+            <div class="case-body"><div class="case-tag">机器视觉 / MACHINE VISION</div><h3>在线智能质检</h3><p>工业相机以毫秒级节拍逐件拍摄，AI 在缺陷流入下道工序之前把它拦下来。</p><span class="case-more">查看现场 →</span></div>
+        </article>
+        <article class="case-card" onclick="openCase(3)" tabindex="0" role="button" aria-label="查看案例：会预演的车间" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openCase(3);}">
+            <div class="case-thumb"><img src="assets/img/case-twin.jpg" alt="会预演的车间" loading="lazy"><span class="case-index">04</span></div>
+            <div class="case-body"><div class="case-tag">数字孪生 / DIGITAL TWIN</div><h3>会“预演”的车间</h3><p>物理产线在屏幕上拥有一个实时同步的“双胞胎”，新工艺先在虚拟空间里跑一遍。</p><span class="case-more">查看现场 →</span></div>
+        </article>
+        <article class="case-card" onclick="openCase(4)" tabindex="0" role="button" aria-label="查看案例：边缘推理与工业大模型" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openCase(4);}">
+            <div class="case-thumb"><img src="assets/img/case-compute.jpg" alt="边缘推理与工业大模型" loading="lazy"><span class="case-index">05</span></div>
+            <div class="case-body"><div class="case-tag">算力底座 / COMPUTING</div><h3>边缘推理与工业大模型</h3><p>边缘节点就近推理，工业大模型把工艺文档、维修记录变成一线工人可问答的知识库。</p><span class="case-more">查看现场 →</span></div>
+        </article>
+        <article class="case-card" onclick="openCase(5)" tabindex="0" role="button" aria-label="查看案例：会自己找路的仓库" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openCase(5);}">
+            <div class="case-thumb"><img src="assets/img/case-logistics.jpg" alt="会自己找路的仓库" loading="lazy"><span class="case-index">06</span></div>
+            <div class="case-body"><div class="case-tag">智能物流 / LOGISTICS</div><h3>会自己找路的仓库</h3><p>AGV/AMR 按订单自动搬运，立体仓库用算法调度货位，物流节拍与产线计划对齐。</p><span class="case-more">查看现场 →</span></div>
+        </article>
+    </div>
+
+    <div class="video-feature">
+        <div class="video-frame" id="video-frame">
+            <img class="video-poster" src="assets/img/case-robot.jpg" alt="智能工厂机械臂视频封面">
+            <!-- 在这里绑定点击事件 -->
+            <div class="video-play" onclick="playVideo()"></div>
+            <div class="video-label" onclick="playVideo()">点击播放 · 现场影像</div>
+            <!-- 增加 onclick 阻止事件冒泡，让原生 controls 完全接管 -->
+            <video id="local-video" playsinline webkit-playsinline controls onclick="event.stopPropagation();">
+                您的浏览器不支持 HTML5 视频播放。
+            </video>
+        </div>
+        <div class="video-info">
+            <div class="video-kicker">现场影像</div>
+            <h3 id="video-title">火箭发动机研究基地的“黑灯工厂”</h3>
+            <p id="video-desc">当火箭发动机的精密件也交给无人产线，AI 质检、数字孪生与自动物流在同一个车间里协同运转。</p>
+            <ul class="video-points">
+                <li>无人产线如何连续运转</li>
+                <li>AI 质检如何替代人工目检</li>
+                <li>数字孪生如何同步整条产线</li>
+            </ul>
+            <div class="video-tabs">
+                <button class="vtab active" data-local="assets/video/rocket.mp4" data-title="火箭发动机研究基地的“黑灯工厂”" data-desc="当火箭发动机的精密件也交给无人产线，AI 质检、数字孪生与自动物流在同一个车间里协同运转。">01 · 火箭发动机 · 黑灯工厂</button>
+                <button class="vtab" data-local="assets/video/gree.mp4" data-title="格力：5G 全无人化黑灯工厂" data-desc="5G 专网把设备、AGV 与中央调度连成一张网，产线在无人值守下连续运转。">02 · 格力 · 5G 黑灯工厂</button>
+            </div>
+            <!-- 顺便把下面原来的外链按钮隐藏，避免断网尴尬 -->
+            <a class="video-link" id="video-link" href="#" style="display: none;" target="_blank" rel="noopener">在哔哩哔哩打开原视频 ↗</a>
+            <p class="video-hint">使用播放器控制栏可调节音量、进度与全屏。</p>
+        </div>
+    </div>
+
+    <div class="page6-actions" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px;">
+        <button class="reset-btn" style="margin-top:0;" onclick="openGolden()">理论升华 · 查看金句</button>
+        <button class="reset-btn" style="margin-top:0;" onclick="switchPage(2)">← 返回 AI 赋能</button>
+    </div>
+
+    <div class="asset-note">
+        影像素材：<a href="https://www.pexels.com/license/" target="_blank" rel="noopener">Pexels 免费图库</a>（可免费使用，无需署名），此处作为智能制造场景示意，并非特定企业实拍；
+        视频为哔哩哔哩公开内容，版权归原作者所有，仅用于课堂演示。如需替换为团队实拍或指定企业素材，直接覆盖 <code>assets/img/</code> 下的同名文件即可。
     </div>
 </div>
 
 <!-- Page 3: 案例实景 -->
 <div class="page" id="page3">
-    <h2 style="text-align: center; font-size: 2.5rem; border: none; margin-bottom: 0;">大国重器 · 智造先锋</h2>
-    <div class="gallery-container" id="gallery-container"></div>
+    <div class="page3-head">
+        <div class="eyebrow">REAL FOOTAGE / 影像档案</div>
+        <h2>大国重器 · 智造先锋</h2>
+        <p>从传统控制台到算力机房，制造现场正在被重新定义</p>
+    </div>
+    <div class="gallery-container" id="gallery-container">
+        <div class="photo-grid">
+            <div class="gallery-item" data-caption="车身焊装 · 无人产线" onclick="openLightbox(this.querySelector('img').src, this.dataset.caption)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
+                <img src="assets/img/wall-body.jpg" alt="车身焊装 · 无人产线" loading="lazy">
+                <div class="item-info"><div class="img-placeholder">车身焊装 · 无人产线</div><div class="img-sub">机器人与 AGV 接力</div></div>
+            </div>
+            <div class="gallery-item" data-caption="精密焊接 · 大国工匠" onclick="openLightbox(this.querySelector('img').src, this.dataset.caption)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
+                <img src="assets/img/wall-weld.jpg" alt="精密焊接 · 大国工匠" loading="lazy">
+                <div class="item-info"><div class="img-placeholder">精密焊接 · 大国工匠</div><div class="img-sub">手艺与工艺的极限</div></div>
+            </div>
+            <div class="gallery-item" data-caption="算力机房 · 数据洪流" onclick="openLightbox(this.querySelector('img').src, this.dataset.caption)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
+                <img src="assets/img/wall-network.jpg" alt="算力机房 · 数据洪流" loading="lazy">
+                <div class="item-info"><div class="img-placeholder">算力机房 · 数据洪流</div><div class="img-sub">工业互联网底座</div></div>
+            </div>
+            <div class="gallery-item" data-caption="服务器集群 · 边缘推理" onclick="openLightbox(this.querySelector('img').src, this.dataset.caption)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
+                <img src="assets/img/wall-datacenter.jpg" alt="服务器集群 · 边缘推理" loading="lazy">
+                <div class="item-info"><div class="img-placeholder">服务器集群 · 边缘推理</div><div class="img-sub">模型在车间里运行</div></div>
+            </div>
+            <div class="gallery-item" data-caption="传统控制台 · 阵痛记忆" onclick="openLightbox(this.querySelector('img').src, this.dataset.caption)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
+                <img src="assets/img/wall-old.jpg" alt="传统控制台 · 阵痛记忆" loading="lazy">
+                <div class="item-info"><div class="img-placeholder">传统控制台 · 阵痛记忆</div><div class="img-sub">从人工经验到数据</div></div>
+            </div>
+            <div class="gallery-item" data-caption="精密装配 · 产业工人" onclick="openLightbox(this.querySelector('img').src, this.dataset.caption)" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}">
+                <img src="assets/img/wall-worker.jpg" alt="精密装配 · 产业工人" loading="lazy">
+                <div class="item-info"><div class="img-placeholder">精密装配 · 产业工人</div><div class="img-sub">人机协同的第一线</div></div>
+            </div>
+        </div>
+    </div>
+    <div class="gallery-hint">点击任意画面查看大图 · 影像为智造场景示意（Pexels）</div>
 </div>
 
 <!-- Page 4: 青年答卷 -->
 <div class="page" id="page4">
     <div class="youth-container">
-        <div class="youth-quote">“以科技创新引领产业创新，<br>积极培育和发展新质生产力。”</div>
-        <div class="youth-author">—— 习近平</div>
+        <div class="youth-quote">“不喊空洞的口号，<br>用严谨的代码和求真的逻辑说话。”</div>
+        <div class="youth-author">—— 大连理工大学 26级 第2组</div>
         
-        <!-- 【占位文本说明】当前为测试阶段占位，最终答辩时请替换为真实的团队信息或答辩总结词 -->
         <div class="team-box">
             <p>课程名称：习近平新时代中国特色社会主义思想概论</p>
-            <p>项目研发团队：大连理工大学 26级 第2组</p>
-            <p>此页面为作品展示使用的临时页面,可以考虑使用其他内容替换</p>
+            <p>以数字技术讲好中国智造故事，把代码写在祖国的大地上。</p>
         </div>
     </div>
 </div>
@@ -694,31 +1533,28 @@
     <div class="macro-title page5-title" style="margin-bottom: 40px;">扬帆起航 · 智造新篇</div>
     
     <div class="plan-flex">
-        <!-- 对应评分标准 ①：主题把握与理论深度 -->
         <div class="plan-card">
-            <div class="plan-step">Phase 01 / 理论赋能</div>
-            <h3>深研新质生产力</h3>
-            <p>跳出技术框架，我们将回归理论原著。深入剖析马克思主义政治经济学与“新质生产力”的内在联系，为后续的数字化宣讲提供更严密、更深刻的学理支撑。</p>
+            <div class="plan-step">Phase 01 / 数据闭环</div>
+            <h3>全量闭环</h3>
+            <p>完成 AI 辅助数据的人工核验，将核心指标全面锁定在工信部与信通院官方报告中，确保数据口径精准无误。</p>
         </div>
         
         <div class="plan-card">
             <div class="plan-step">Phase 02 / 开源共建</div>
-            <h3>思政数字化底座</h3>
-            <p>将该轻量级、零依赖的交互式大屏代码彻底开源，打造一个可供全校乃至全国高校思政课直接复用的“数字化展演底座”。</p>
+            <h3>开源普惠</h3>
+            <p>将纯前端轻量级代码彻底开源，打造可供全国高校复用的思政数字化底座，让技术普惠真正落地。</p>
         </div>
         
-        <!-- 对应评分标准 ③：数字化质量与创新性 -->
         <div class="plan-card">
-            <div class="plan-step">Phase 03 / 迭代升级</div>
-            <h3>跨学科数字融合</h3>
-            <p>持续探索“计算机技术+思政理论”的跨界融合。在保留零依赖、轻量化优势的基础上，引入更丰富的真实工业数据，打造可复用的高校思政数字化展演底座。</p>
+            <div class="plan-step">Phase 03 / 进阶迭代</div>
+            <h3>进阶推演</h3>
+            <p>计划接入工业大模型 API，实现“输入产业问题，实时生成智造升级逻辑图”的全景动态推演。</p>
         </div>
         
-        <!-- 呼应总体目标：科技报国 -->
         <div class="plan-card">
-            <div class="plan-step">Phase 04 / 科技报国</div>
-            <h3>投身智造强国</h3>
-            <p>从一份网页作业出发，走向未来的科研实践。将个人所学与国家重大战略需求相结合，把代码写在祖国的大地上，做无愧于时代的计算机青年。</p>
+            <div class="plan-step">Phase 04 / 青年宣讲</div>
+            <h3>宣讲行动</h3>
+            <p>带着大屏冲刺“青声思政宣讲台”，用青年之声讲透新质生产力；持续维护 GitHub 仓库，把课程作业转化为长效数字化工具。</p>
         </div>
     </div>
 </div>
@@ -726,108 +1562,610 @@
 <!-- 思政弹窗 -->
 <div class="modal" id="golden-modal">
     <div class="modal-content">
-        <h1>科技创新 · 新质生产力</h1>
-        <p>“以科技创新引领产业创新，<br>积极培育和发展新质生产力。”</p>
-        <p class="author">—— 习近平</p>
+        <h1>制造业发展新方向</h1>
+        <p>“推动制造业高端化、<br>智能化、绿色化发展。”</p>
+        <p class="author">—— 党的二十大报告</p>
         <button class="close-btn" onclick="closeModal()">继续演示</button>
     </div>
 </div>
 
+<!-- 案例详情弹窗 -->
+<div class="modal" id="case-modal">
+    <div class="case-sheet">
+        <button class="sheet-close" onclick="closeCase()" aria-label="关闭案例详情">×</button>
+        <div class="case-sheet-img"><img id="case-img" src="" alt=""></div>
+        <div class="case-sheet-body">
+            <div class="case-tag" id="case-tag"></div>
+            <h2 id="case-title"></h2>
+            <p id="case-desc"></p>
+            <ul class="fact-list" id="case-facts"></ul>
+            <div class="case-source" id="case-source"></div>
+        </div>
+    </div>
+</div>
+
+<!-- 图片灯箱 -->
+<div class="lightbox" id="lightbox">
+    <button class="lightbox-close" onclick="closeLightbox()" aria-label="关闭大图">×</button>
+    <img id="lightbox-img" src="" alt="">
+    <div class="lightbox-cap" id="lightbox-cap"></div>
+</div>
+
+<!-- 轻提示 -->
+<div class="page-toast" id="page-toast"></div>
+
 <script>
+    // 关闭浏览器的滚动位置恢复，避免刷新后停在半页
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
     // ================= 1. 数据配置区 =================
-    // 【拓展红线】在这里添加新菜单，id 必须递增，name 必须是4个中文字符
-    const navItems = [
-        { id: 1, name: '宏观背景' },
-        { id: 2, name: 'AI 赋能' },
-        { id: 3, name: '智造先锋' },
-        { id: 4, name: '青年答卷' },
-        { id: 5, name: '未来展望' }
+    // Page 6 AI 赋能现场案例（文案数据；图片由静态 HTML 提供）
+    const aiCases = [
+        {
+            tag: '黑灯工厂 / LIGHTS-OUT',
+            title: '无人化产线',
+            desc: '输送、装配与检测自动接力，车间可以关灯运行，人从操作者变成监控者。',
+            facts: [
+                '自动输送系统按节拍把工件送到下一道工序，减少搬运与等待。',
+                '设备状态实时上传，异常在停机之前被预警。',
+                '多品种、小批量订单可以混线生产，换型时间被压缩。'
+            ],
+            source: '场景示意图 · 图片来源 Pexels（免费图库）'
+        },
+        {
+            tag: '工业机器人 / ROBOTICS',
+            title: '柔性制造单元',
+            desc: '六轴机器人配合视觉引导，完成焊接、搬运、装配等重复工序，节拍由算法统一调度。',
+            facts: [
+                '一台机器人可以服务多台设备，减少工序之间的等待。',
+                '在高温、高粉尘、高风险工位替代人工，把安全风险降下来。',
+                '通过更换末端工具与程序，同一条线可以快速切换产品。'
+            ],
+            source: '场景示意图 · 图片来源 Pexels（免费图库）'
+        },
+        {
+            tag: '机器视觉 / MACHINE VISION',
+            title: '在线智能质检',
+            desc: '工业相机以毫秒级节拍逐件拍摄，AI 在缺陷流入下道工序之前把它拦下来。',
+            facts: [
+                '深度学习模型学习缺陷特征，减少人工目检的漏检与疲劳误差。',
+                '检测结果实时回传 MES，良率波动可以被追溯到具体批次。',
+                '同一套视觉系统可以复用到不同产品，换型只需更新模型。'
+            ],
+            source: '场景示意图 · 图片来源 Pexels（免费图库）'
+        },
+        {
+            tag: '数字孪生 / DIGITAL TWIN',
+            title: '会“预演”的车间',
+            desc: '物理产线在屏幕上拥有一个实时同步的“双胞胎”，新工艺先在虚拟空间里跑一遍。',
+            facts: [
+                '温度、压力、节拍与设备状态在数字模型里实时映射。',
+                '新工艺先在虚拟产线试错，再下发到真实设备，减少停机损失。',
+                '管理者从“看报表”转向“看现场”，决策链条更短。'
+            ],
+            source: '场景示意图 · 图片来源 Pexels（免费图库）'
+        },
+        {
+            tag: '算力底座 / COMPUTING',
+            title: '边缘推理与工业大模型',
+            desc: '边缘节点就近推理，工业大模型把工艺文档、维修记录变成一线工人可问答的知识库。',
+            facts: [
+                '数据在车间本地完成推理，减少上云时延，也保护生产数据。',
+                '大模型把老师傅的经验沉淀成可检索、可复用的知识。',
+                '算力、网络与存储，正在成为智能工厂的新基础设施。'
+            ],
+            source: '场景示意图 · 图片来源 Pexels（免费图库）'
+        },
+        {
+            tag: '智能物流 / LOGISTICS',
+            title: '会自己找路的仓库',
+            desc: 'AGV/AMR 按订单自动搬运，立体仓库用算法调度货位，物流节拍与产线计划对齐。',
+            facts: [
+                '机器人实时避障、自动充电，7×24 小时不间断搬运。',
+                '算法按出入库频率分配货位，缩短拣选路径。',
+                '库存、物流与生产计划在同一套系统里协同。'
+            ],
+            source: '场景示意图 · 图片来源 Pexels（免费图库）'
+        }
     ];
 
-    const caseData = [
-        { title: '黑灯工厂', sub: '全自动化产线' },
-        { title: '机器视觉质检', sub: 'AI缺陷检测' },
-        { title: '工业大模型', sub: '边缘计算节点' },
-        { title: '5G全连接工厂', sub: '智能机械臂' },
-        { title: '数字孪生车间', sub: '实时数据映射' },
-        { title: '智能物流仓储', sub: 'AGV调度系统' }
-    ];
-
-    // ================= 2. 渲染函数区 =================
-    // 渲染顶部导航：生成两组一模一样的按钮，用于跑马灯无缝衔接
-    function renderNav() {
-        const track = document.querySelector('.nav-track');
-        if (!track) return;
-        
-        const createGroupHtml = () => {
-            return navItems.map((item, index) => `
-                <button class="nav-btn ${index === 0 ? 'active' : ''}" onclick="switchPage(${item.id})">
-                    ${item.name}
-                </button>
-            `).join('');
-        };
-
-        track.innerHTML = `
-            <div class="nav-group">${createGroupHtml()}</div>
-            <div class="nav-group">${createGroupHtml()}</div>
-        `;
+    // ================= 2. 核心交互区 =================
+    
+    // [页面锁定控制] 赋能前只能看 Page 1 和 Page 2
+    function lockFuturePages(isLocked) {
+        const futureBtns = document.querySelectorAll('.nav-btn[data-page="3"], .nav-btn[data-page="4"], .nav-btn[data-page="5"], .nav-btn[data-page="6"]');
+        futureBtns.forEach(btn => {
+            if (isLocked) btn.classList.add('locked');
+            else btn.classList.remove('locked');
+        });
     }
-
-    // [画廊渲染] 横向图片墙
-    function renderGallery() {
-        const container = document.getElementById('gallery-container');
-        if (!container) return;
-
-        // 为了让每一行都饱满，我们把数组分成三段
-        const row1Data = [...caseData.slice(0, 2), ...caseData.slice(0, 2)]; // 取前2个并复制
-        const row2Data = [...caseData.slice(2, 4), ...caseData.slice(2, 4)]; // 取中间2个并复制
-        const row3Data = [...caseData.slice(4, 6), ...caseData.slice(4, 6)]; // 取最后2个并复制
-
-        // 为了让无缝滚动成立，每行的数据必须复制两份以上拼接
-        // 比如 row1 有 4 个，拼成 8 个
-        const createRowHtml = (data) => {
-            const duplicated = [...data, ...data]; 
-            return duplicated.map(item => `
-                <div class="gallery-item">
-                    <div class="play-icon"></div>
-                    <div class="item-info">
-                        <div class="img-placeholder">[ 实时画面 ] ${item.title}</div>
-                        <div class="img-sub">${item.sub}</div>
-                    </div>
-                </div>
-            `).join('');
-        };
-
-        // 渲染三行，中间一行反向滚
-        container.innerHTML = `
-            <div class="gallery-row">${createRowHtml(row1Data)}</div>
-            <div class="gallery-row reverse">${createRowHtml(row2Data)}</div>
-            <div class="gallery-row">${createRowHtml(row3Data)}</div>
-        `;
-    }
-
-    // ================= 3. 核心交互区 =================
     // 页面切换逻辑：不包含强制重置动画，防止用户切页时打断正在进行的赋能动画
     function switchPage(pageNum) {
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.querySelectorAll('.nav-group .nav-btn').forEach(b => b.classList.remove('active'));
-        
-        const targetPage = document.getElementById('page' + pageNum);
-        if(targetPage) targetPage.classList.add('active');
-        
-        // 精准高亮对应的按钮（防止跑马灯循环时高亮状态错乱）
-        const activeBtns = document.querySelectorAll(`.nav-btn[onclick="switchPage(${pageNum})"]`);
-        activeBtns.forEach(btn => btn.classList.add('active'));
-        
-        // 手机端切页自动回到顶部
-        if(window.innerWidth <= 880) {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+        // 没赋能前，禁止切到后续页面
+        if (pageNum > 2 && !document.body.classList.contains('theme-B')) {
+            showToast('请先点击 AI 赋能，完成跃迁');
+            return;
         }
+
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));        document.querySelectorAll('.nav-group .nav-btn').forEach(b => b.classList.remove('active'));
+
+        const targetPage = document.getElementById('page' + pageNum);
+        if (targetPage) targetPage.classList.add('active');
+
+        // 进入“赋能现场”即切换到科技风，未点击 AI 赋能时也能直接看这一页
+        if (pageNum === 6 && !document.body.classList.contains('theme-B')) {
+            document.body.classList.add('theme-B');
+        }
+
+        // Page 3 的自动滚动墙在页面可见后再初始化，才能量到真实宽度
+        if (pageNum === 3) ensureGalleryMarquee();
+
+        // 精准高亮对应的按钮
+        const activeBtns = document.querySelectorAll(`.nav-btn[data-page="${pageNum}"]`);
+        activeBtns.forEach(btn => btn.classList.add('active'));
+
+        // 切页后回到顶部（同时兼容 body 作为滚动容器的情况）
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+
+        // 深链：#page6；无 JS 时长页模式下也可直接定位
+        try { history.replaceState(null, '', '#page' + pageNum); } catch (error) { /* file:// 下忽略 */ }
     }
 
-    // 关闭弹窗
+    // 导航点击：JS 可用时切页；JS 被禁用时 href 仍可跳转
+    function navGo(pageNum) {
+        switchPage(pageNum);
+        return false;
+    }
+
+    // 关闭思政弹窗
     function closeModal() {
         document.getElementById('golden-modal').classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    // 打开思政弹窗（Page 6 “理论升华”按钮）
+    function openGolden() {
+        document.getElementById('golden-modal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    // ================= 2.1 案例详情 / 图片灯箱 / 视频切换 =================
+    function openCase(index) {
+        const data = aiCases[index];
+        const card = document.querySelectorAll('#case-grid .case-card')[index];
+        if (!data || !card) return;
+        const thumb = card.querySelector('img');
+        document.getElementById('case-img').src = thumb ? thumb.src : '';
+        document.getElementById('case-img').alt = data.title;
+        document.getElementById('case-tag').textContent = data.tag;
+        document.getElementById('case-title').textContent = data.title;
+        document.getElementById('case-desc').textContent = data.desc;
+        document.getElementById('case-facts').innerHTML = data.facts.map(f => `<li>${f}</li>`).join('');
+        document.getElementById('case-source').textContent = data.source;
+        document.getElementById('case-modal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeCase() {
+        document.getElementById('case-modal').classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    function openLightbox(src, caption) {
+        const img = document.getElementById('lightbox-img');
+        img.src = src;
+        img.alt = caption;
+        document.getElementById('lightbox-cap').textContent = caption;
+        document.getElementById('lightbox').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+        document.getElementById('lightbox').classList.remove('active');
+        document.body.style.overflow = '';
+    }
+
+    let toastTimer = null;
+    function showToast(message) {
+        const toast = document.getElementById('page-toast');
+        if (!toast) return;
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove('show'), 2800);
+    }
+
+    // [顶部导航] 跑马灯 + 拖拽（≤1024 启用，大屏单组 CSS 居中）
+    // 引擎结构与 Page 3 影像墙一致：rAF 自动滚动 + Pointer 拖拽 + 取模循环
+    function initNavMarquee() {
+        const wrapper = document.querySelector('.nav-wrapper');
+        const track = document.querySelector('.nav-track');
+        if (!wrapper || !track) return;
+        const baseGroup = track.querySelector('.nav-group');
+        if (!baseGroup) return;
+
+        const SPEED = 45; // px/s
+        let setWidth = 0;
+        let offset = 0;
+        let paused = false;
+        let dragging = false;
+        let moved = 0;
+        let startX = 0;
+        let startOffset = 0;
+        let resumeTimer = null;
+        let last = performance.now();
+        let cloneGroup = null;
+        let enabled = false;
+
+        const apply = () => { track.style.transform = `translate3d(${-offset}px, 0, 0)`; };
+        const wrap = () => {
+            if (setWidth > 0) offset = ((offset % setWidth) + setWidth) % setWidth;
+        };
+        const measure = () => {
+            if (cloneGroup) setWidth = cloneGroup.offsetLeft - baseGroup.offsetLeft;
+        };
+
+        const enable = () => {
+            if (enabled) return;
+            enabled = true;
+            if (!cloneGroup) {
+                cloneGroup = baseGroup.cloneNode(true);
+                cloneGroup.setAttribute('aria-hidden', 'true');
+                cloneGroup.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+                track.appendChild(cloneGroup);
+            }
+            measure();
+            offset = 0;
+            apply();
+        };
+
+        const disable = () => {
+            if (!enabled) return;
+            enabled = false;
+            dragging = false;
+            paused = false;
+            wrapper.classList.remove('is-dragging');
+            if (cloneGroup) { cloneGroup.remove(); cloneGroup = null; }
+            track.style.transform = '';
+            offset = 0;
+            setWidth = 0;
+        };
+
+        // 恢复基于视口宽度的稳定断点，与 CSS 保持一致，避免死循环重排
+        const syncMode = () => {
+            if (window.innerWidth <= 1024) enable();
+            else disable();
+        };
+
+        const tick = now => {
+            const dt = Math.min((now - last) / 1000, 0.05);
+            last = now;
+            if (enabled && !paused && !dragging && setWidth > 0) {
+                offset += SPEED * dt;
+                wrap();
+                apply();
+            }
+            requestAnimationFrame(tick);
+        };
+
+        // --- 拖拽（Pointer Events，参考 Page 3；move/up 挂 window 以免 click target 被劫持）---
+        wrapper.addEventListener('pointerdown', event => {
+            if (!enabled) return;
+            if (event.pointerType === 'mouse' && event.button !== 0) return;
+            dragging = true;
+            paused = true;
+            moved = 0;
+            startX = event.clientX;
+            startOffset = offset;
+            wrapper.classList.add('is-dragging');
+            clearTimeout(resumeTimer);
+        });
+
+        window.addEventListener('pointermove', event => {
+            if (!dragging) return;
+            const dx = event.clientX - startX;
+            moved = Math.max(moved, Math.abs(dx));
+            offset = startOffset - dx;
+            wrap();
+            apply();
+        });
+
+        let lastDragEndTime = 0;
+        const endDrag = () => {
+            if (!dragging) return;
+            dragging = false;
+            wrapper.classList.remove('is-dragging');
+            if (moved > 6) lastDragEndTime = Date.now();
+            clearTimeout(resumeTimer);
+            resumeTimer = setTimeout(() => {
+                paused = false;
+            }, moved > 6 ? 600 : 0);
+        };
+
+        window.addEventListener('pointerup', endDrag);
+        window.addEventListener('pointercancel', endDrag);
+
+        // 拖拽后拦截误点击：capture 阶段先于 a[onclick] 执行，只拦截 150ms 内的极速点击
+        wrapper.addEventListener('click', event => {
+            if (Date.now() - lastDragEndTime < 150) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        }, true);
+
+        // 鼠标悬停暂停
+        wrapper.addEventListener('mouseenter', () => { if (!dragging) paused = true; });
+        wrapper.addEventListener('mouseleave', () => { if (!dragging) paused = false; });
+
+        window.addEventListener('resize', () => {
+            syncMode();
+            if (enabled) { measure(); wrap(); apply(); }
+        });
+
+        syncMode();
+        requestAnimationFrame(tick);
+    }
+
+    function initVideoTabs() {
+        const videoEl = document.getElementById('local-video');
+        const videoBox = document.getElementById('video-frame');
+        if (!videoEl || !videoBox) return;
+        
+        document.querySelectorAll('.vtab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.vtab').forEach(b => b.classList.toggle('active', b === btn));
+                document.getElementById('video-title').textContent = btn.dataset.title;
+                document.getElementById('video-desc').textContent = btn.dataset.desc;
+                
+                const localSrc = btn.dataset.local;
+                if (videoBox.classList.contains('playing') && localSrc) {
+                    videoEl.pause(); 
+                    videoEl.src = localSrc; 
+                    videoEl.load(); 
+                    videoEl.play().catch(e => console.error(e)); 
+                }
+            });
+        });
+    }
+
+    function playVideo() {
+        const videoBox = document.getElementById('video-frame');
+        const videoEl = document.getElementById('local-video');
+        if (!videoBox || !videoEl) return;
+        
+        // 如果已经处于播放状态，直接 return，把控制权交给 video 原生 controls
+        if (videoBox.classList.contains('playing')) {
+            return;
+        }
+        
+        // 第一次点击封面：隐藏封面层，显示播放器，加载并播放视频
+        videoBox.classList.add('playing');
+        
+        const active = document.querySelector('.vtab.active');
+        const localSrc = active ? active.dataset.local : '';
+        
+        if (localSrc) {
+            videoEl.src = localSrc;
+            // 用户主动点击触发，符合浏览器有声播放策略，移除强制静音
+            videoEl.muted = false;
+            videoEl.load(); 
+        }
+        
+        videoEl.play().catch(err => {
+            console.error("播放被拦截或视频格式不支持:", err);
+        });
+    }
+
+    // [Page 3] 原版自动滚动影像墙 + 鼠标/触摸拖动
+    let galleryMarqueeReady = false;
+    function ensureGalleryMarquee() {
+        if (galleryMarqueeReady) return;
+        galleryMarqueeReady = true;
+        initGalleryMarquee();
+    }
+
+    function initGalleryMarquee() {
+        const container = document.getElementById('gallery-container');
+        if (!container) return;
+        const source = Array.from(container.querySelectorAll('.gallery-item'));
+        if (source.length < 2) return;
+
+        const data = source.map(el => {
+            const img = el.querySelector('img');
+            return {
+                src: img ? img.src : '',
+                alt: img ? img.alt : '',
+                caption: el.dataset.caption || '',
+                title: (el.querySelector('.img-placeholder') || {}).textContent || '',
+                sub: (el.querySelector('.img-sub') || {}).textContent || ''
+            };
+        });
+
+        const makeCard = item => {
+            const card = document.createElement('div');
+            card.className = 'gallery-item';
+            card.tabIndex = 0;
+            card.setAttribute('role', 'button');
+            card.dataset.caption = item.caption;
+            const img = document.createElement('img');
+            img.src = item.src;
+            img.alt = item.alt;
+            img.loading = 'lazy';
+            const info = document.createElement('div');
+            info.className = 'item-info';
+            const title = document.createElement('div');
+            title.className = 'img-placeholder';
+            title.textContent = item.title;
+            const sub = document.createElement('div');
+            sub.className = 'img-sub';
+            sub.textContent = item.sub;
+            info.append(title, sub);
+            card.append(img, info);
+            return card;
+        };
+
+        const rows = [
+            { order: [0, 1, 2], dir: 1, speed: 18 },
+            { order: [2, 3, 4], dir: -1, speed: 14 },
+            { order: [4, 5, 0], dir: 1, speed: 11 }
+        ];
+
+        container.classList.add('marquee-mode');
+        container.innerHTML = '';
+
+        const built = rows.map(cfg => {
+            const rowEl = document.createElement('div');
+            rowEl.className = 'marquee-row';
+            const track = document.createElement('div');
+            track.className = 'marquee-track';
+            rowEl.appendChild(track);
+            container.appendChild(rowEl);
+            const baseItems = cfg.order.map(index => data[index]).filter(Boolean);
+            const addSet = () => baseItems.forEach(item => track.appendChild(makeCard(item)));
+            addSet();
+            addSet();
+            return { rowEl, track, baseItems, cfg };
+        });
+
+        const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        built.forEach(({ rowEl, track, baseItems, cfg }) => {
+            const firstCards = track.children;
+            if (!firstCards.length) return;
+            const gap = parseFloat(getComputedStyle(track).columnGap || getComputedStyle(track).gap) || 14;
+            const setCount = baseItems.length;
+            let setWidth = firstCards[setCount]
+                ? firstCards[setCount].offsetLeft - firstCards[0].offsetLeft
+                : (firstCards[0].getBoundingClientRect().width + gap) * setCount;
+
+            // 按视口宽度补足副本，保证循环时右侧始终有内容
+            let guard = 0;
+            while (track.scrollWidth - setWidth < container.clientWidth + 100 && guard < 8) {
+                baseItems.forEach(item => track.appendChild(makeCard(item)));
+                guard += 1;
+            }
+
+            let offset = 0;
+            let paused = false;
+            let dragging = false;
+            let moved = 0;
+            let startX = 0;
+            let startOffset = 0;
+            let resumeTimer = null;
+            let last = performance.now();
+
+            const apply = () => { track.style.transform = `translate3d(${-offset}px, 0, 0)`; };
+            const wrap = () => {
+                if (setWidth > 0) offset = ((offset % setWidth) + setWidth) % setWidth;
+            };
+            const tick = now => {
+                const dt = Math.min((now - last) / 1000, 0.05);
+                last = now;
+                const pageActive = document.getElementById('page3').classList.contains('active');
+                if (!paused && !dragging && !reduceMotion && pageActive) {
+                    offset += cfg.dir * cfg.speed * dt;
+                    wrap();
+                    apply();
+                }
+                requestAnimationFrame(tick);
+            };
+
+            apply();
+            requestAnimationFrame(tick);
+
+            rowEl.addEventListener('mouseenter', () => { if (!dragging) paused = true; });
+            rowEl.addEventListener('mouseleave', () => { if (!dragging) paused = false; });
+
+            // 先声明 endDrag，防止 ReferenceError 报错中断循环
+            const endDrag = event => {
+                if (!dragging) return;
+                dragging = false;
+                rowEl.classList.remove('is-dragging');
+                try {
+                    if (rowEl.hasPointerCapture(event.pointerId)) rowEl.releasePointerCapture(event.pointerId);
+                } catch (error) { /* ignore */ }
+                const wasMoved = moved > 6;
+                rowEl.dataset.dragged = wasMoved ? '1' : '';
+                clearTimeout(resumeTimer);
+                resumeTimer = setTimeout(() => {
+                    rowEl.dataset.dragged = '';
+                    paused = false;
+                }, wasMoved ? 900 : 0);
+            };
+
+            rowEl.addEventListener('pointerdown', event => {
+                if (event.pointerType === 'mouse' && event.button !== 0) return;
+                dragging = true;
+                paused = true;
+                moved = 0;
+                startX = event.clientX;
+                startOffset = offset;
+                rowEl.classList.add('is-dragging');
+                clearTimeout(resumeTimer);
+                // 利用原生指针捕获，不需要往 window 上挂 move/up
+                try { rowEl.setPointerCapture(event.pointerId); } catch (error) { /* 忽略 */ }
+            });
+
+            rowEl.addEventListener('pointermove', event => {
+                if (!dragging) return;
+                const dx = event.clientX - startX;
+                moved = Math.max(moved, Math.abs(dx));
+                offset = startOffset - dx;
+                wrap();
+                apply();
+            });
+
+            rowEl.addEventListener('pointerup', endDrag);
+            rowEl.addEventListener('pointercancel', endDrag);
+
+            rowEl.addEventListener('click', event => {
+                if (rowEl.dataset.dragged === '1') { event.preventDefault(); return; }
+                const item = event.target.closest('.gallery-item');
+                if (!item) return;
+                openLightbox(item.querySelector('img').src, item.dataset.caption || '');
+            });
+
+            rowEl.addEventListener('keydown', event => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                const item = event.target.closest('.gallery-item');
+                if (!item) return;
+                event.preventDefault();
+                openLightbox(item.querySelector('img').src, item.dataset.caption || '');
+            });
+
+            window.addEventListener('resize', () => {
+                const cards = track.children;
+                if (cards.length > setCount) setWidth = cards[setCount].offsetLeft - cards[0].offsetLeft;
+                wrap();
+                apply();
+            });
+        });
+
+        const hint = document.querySelector('.gallery-hint');
+        if (hint) hint.textContent = '自动滚动 · 可左右拖动 · 点击画面看大图';
+    }
+
+    function initReveal() {
+        const items = document.querySelectorAll('#page6 .case-card, #page6 .flow-step, #page6 .video-feature, #page6 .ai-hero, #page6 .data-board');
+        if (!items.length) return;
+        if (!('IntersectionObserver' in window)) {
+            items.forEach(el => el.classList.add('in'));
+            return;
+        }
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('in');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.08 });
+        items.forEach(el => {
+            el.classList.add('reveal');
+            observer.observe(el);
+        });
     }
 
     // [全局动画锁] 防止连点：用于控制 Page 2 赋能动画、导航栏禁用、Reset 按钮禁用
@@ -855,70 +2193,37 @@
 
     // [重置演示] 将一切状态恢复出厂设置
     function resetDemo() {
-        // 1. 拦截赋能动画期间的误触
-        if (isAnimated && document.getElementById('ai-btn').innerText === '跃迁中...') {
-            return;
-        }
+        // 清除 URL 中的 hash（防止 F5 刷新后卡在 Page 3/4/5/6，强行回到 Page 1）
+        try {
+            history.replaceState(null, '', window.location.pathname + window.location.search);
+        } catch (e) {}
 
-        // 2. 【核心修复】拦截初始状态下的重复重置
-        const isInitialState = !document.body.classList.contains('theme-B');
-        const isModalOpen = document.getElementById('golden-modal').classList.contains('active');
-        
-        // 如果已经是初始状态且没弹窗，直接返回，避免触发毫无意义的 View Transition 导致卡死
-        if (isInitialState && !isModalOpen) {
-            return;
-        }
-        
-        closeModal();
-        
-        const resetBtn = document.getElementById('reset-btn');
-        const rect = resetBtn.getBoundingClientRect();
-        const x = rect.left + rect.width / 2;
-        const y = rect.top + rect.height / 2;
-        document.documentElement.style.setProperty('--click-x', `${x}px`);
-        document.documentElement.style.setProperty('--click-y', `${y}px`);
-
-        const removeTheme = () => {
-            isAnimated = false;
-            document.body.classList.remove('theme-B'); // 褪回工业风
-
-            const btn = document.getElementById('ai-btn');
-            if(btn) {
-                btn.innerText = 'AI 赋能';
-                btn.style.color = 'var(--cyan)';
-                btn.style.borderColor = 'var(--cyan)';
-                btn.style.animation = 'breathe 2s infinite alternate';
-            }
-
-            document.querySelectorAll('.data-point').forEach(el => {
-                el.style.opacity = '0';
-                el.style.transform = 'translateX(30px)';
-                el.querySelector('span').innerText = '0';
-            });
-        };
-
-        // 如果弹窗没开，瞬间重置；如果弹窗开着，延迟 500ms 等弹窗消失后再放水波纹
-        if (!isModalOpen) {
-            if (document.startViewTransition) document.startViewTransition(removeTheme);
-            else removeTheme();
-        } else {
-            setTimeout(() => {
-                if (document.startViewTransition) document.startViewTransition(removeTheme);
-                else removeTheme();
-            }, 500);
-        }
+        // 执行物理刷新（最稳定、彻底的状态重置）
+        window.location.reload();
     }
-
     // ================= 4. 初始化与事件绑定 =================
     document.addEventListener('DOMContentLoaded', () => {
-        renderNav();
-        renderGallery();
+        initVideoTabs();
+        initNavMarquee();
+        initReveal();
+        
+        // 【新增】初始锁定后续页面
+        lockFuturePages(true);
+
+        // 深链：#page6 直接进入 AI 赋能现场
+        const initialPage = (location.hash.match(/^#page(\d+)$/) || [])[1];
+        if (initialPage) {
+            switchPage(parseInt(initialPage, 10));
+            // 浏览器可能在 DOMContentLoaded 之后才执行锚点滚动，这里拉回顶部
+            setTimeout(() => window.scrollTo(0, 0), 120);
+        }
 
         const aiBtn = document.getElementById('ai-btn');
         const resetBtn = document.getElementById('reset-btn'); 
         
         if(aiBtn) {
-            aiBtn.addEventListener('click', () => {
+            aiBtn.addEventListener('click', (event) => {
+                event.preventDefault();
                 if (isAnimated) return; 
                 isAnimated = true;
 
@@ -951,10 +2256,13 @@
                 };
 
                 // 3. 触发水波纹转场
-                if (document.startViewTransition) {
+                // 【移动端防撕裂铁律】仅大屏(>880)启用 View Transitions 水波纹，
+                // 手机端直接静默秒切 applyTheme()，规避长屏 clip-path 快照撕裂。
+                const useRipple = window.innerWidth > 880;
+                if (document.startViewTransition && useRipple) {
                     document.startViewTransition(applyTheme);
                 } else {
-                    applyTheme(); // 降级兼容旧浏览器
+                    applyTheme(); // 降级兼容旧浏览器 / 移动端直接秒切
                 }
 
                 // 4. 异步唤醒右侧数据点
@@ -969,31 +2277,58 @@
                     }, index * 200);
                 });
 
-                // 5. 结尾解禁与恢复（严格对齐到 2秒 后触发）
+                // 5. 结尾解禁并跳转到「AI 赋能现场」实景页
                 setTimeout(() => {
-                    document.getElementById('golden-modal').classList.add('active');
                     aiBtn.innerText = '赋能完成';
-                    
+
                     if(resetBtn) {
-                        resetBtn.disabled = false; 
-                        resetBtn.innerText = '[ Reset ]'; 
+                        resetBtn.disabled = false;
+                        resetBtn.innerText = '[ Reset ]';
                     }
-                    
+
                     const navWrapper = document.querySelector('.nav-wrapper');
                     if(navWrapper) navWrapper.classList.remove('disabled-nav');
-                    
+
                     const navBtns = document.querySelectorAll('.nav-btn');
                     navBtns.forEach(btn => {
-                        const onclickStr = btn.getAttribute('onclick');
-                        if (onclickStr) {
-                            const pageId = parseInt(onclickStr.match(/\d+/)[0]);
-                            const item = navItems.find(nav => nav.id === pageId);
-                            if (item) btn.innerText = item.name;
-                        }
+                        if (btn.dataset.name) btn.innerText = btn.dataset.name;
                     });
+
+                    // 【新增】赋能完成，解除导航锁定
+                    lockFuturePages(false);
+
+                    // 直接进入真实图片 / 案例 / 视频现场
+                    switchPage(6);
+                    showToast('已进入 AI 赋能现场');
                 }, 2000); 
             });
         }
+
+        // 主脚本完整跑完后才保持单页模式；若中途报错，watchdog 会恢复长页
+        document.body.classList.add('app-ready');
+        document.documentElement.classList.add('js-ready');
+    });
+
+    // 点击遮罩关闭 + Esc 关闭
+    document.addEventListener('DOMContentLoaded', () => {
+        const caseModal = document.getElementById('case-modal');
+        if (caseModal) {
+            caseModal.addEventListener('click', event => {
+                if (event.target === caseModal) closeCase();
+            });
+        }
+        const lightbox = document.getElementById('lightbox');
+        if (lightbox) {
+            lightbox.addEventListener('click', event => {
+                if (event.target === lightbox) closeLightbox();
+            });
+        }
+        document.addEventListener('keydown', event => {
+            if (event.key !== 'Escape') return;
+            if (document.getElementById('lightbox').classList.contains('active')) closeLightbox();
+            if (document.getElementById('case-modal').classList.contains('active')) closeCase();
+            if (document.getElementById('golden-modal').classList.contains('active')) closeModal();
+        });
     });
 </script>
 </body>
